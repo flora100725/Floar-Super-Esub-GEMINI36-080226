@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全球醫療器材 UDI 法規與低風險產品合規互動式儀表板</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter / Noto Sans TC -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        },
+                        darkbg: '#0f172a',
+                        cardbg: '#1e293b',
+                        borderbg: '#334155'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        .editable-cell:focus {
+            outline: 2px solid #3b82f6;
+            background-color: rgba(59, 130, 246, 0.1);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex flex-col antialiased">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-slate-800/80 backdrop-blur border-b border-slate-700 sticky top-0 z-50 px-4 lg:px-8 py-3">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
+                    <i class="fa-solid fa-barcode text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight tracking-wide text-white">全球醫療器材 UDI 法規合規戰略儀表板</h1>
+                    <p class="text-xs text-slate-400">Class I / Class A 低風險醫療器材法規對照、特殊規範與專家問答總覽</p>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="flex items-center gap-2 flex-wrap">
+                <button onclick="toggleEditMode()" id="editBtn" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-pen-to-square text-blue-400"></i>
+                    <span id="editBtnText">開啟編輯模式</span>
+                </button>
+                <button onclick="exportMarkdown()" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-file-arrow-down"></i> 匯出 Markdown (.md)
+                </button>
+                <button onclick="exportHTML()" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-600/30 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-download"></i> 匯出完整 HTML
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 space-y-8">
+
+        <!-- KPI Metrics Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-slate-800/60 border border-slate-700/80 rounded-xl p-4 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-earth-americas"></i>
+                </div>
+                <div>
+                    <div class="text-2xl font-bold text-white">9 大機構</div>
+                    <div class="text-xs text-slate-400">FDA, EU, TGA, HSA, ANVISA...</div>
+                </div>
+            </div>
+            <div class="bg-slate-800/60 border border-slate-700/80 rounded-xl p-4 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <div class="text-2xl font-bold text-white">Class I / A</div>
+                    <div class="text-xs text-slate-400">低風險等級專題剖析</div>
+                </div>
+            </div>
+            <div class="bg-slate-800/60 border border-slate-700/80 rounded-xl p-4 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-sliders"></i>
+                </div>
+                <div>
+                    <div class="text-2xl font-bold text-white">100% 自訂</div>
+                    <div class="text-xs text-slate-400">支援線上內文修訂與備註</div>
+                </div>
+            </div>
+            <div class="bg-slate-800/60 border border-slate-700/80 rounded-xl p-4 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-clipboard-question"></i>
+                </div>
+                <div>
+                    <div class="text-2xl font-bold text-white">40+ 關鍵實務</div>
+                    <div class="text-xs text-slate-400">涵蓋 2 輪延伸實務問答</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visualization Section: 5 Visual Charts -->
+        <section class="space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-blue-400"></i> 全球 UDI 管制趨勢與數據視覺化 (5 大圖表分析)
+                </h2>
+                <span class="text-xs text-slate-400 bg-slate-800 px-2.5 py-1 rounded-full border border-slate-700">可互動圖表</span>
+            </div>
+
+            <!-- Chart Row 1: Charts 1, 2, 3 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Chart 1: Regional Focus Regulatory Comparison -->
+                <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-5 shadow-lg flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-semibold text-slate-200">圖1. 五大重點國家 UDI 政策彈性與嚴格度</h3>
+                            <span class="text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">Radar</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mb-4">分析 ANVISA, HSA, TGA, Egypt, Saudi Arabia 於標籤、資料庫、AR依賴度及實施彈性。</p>
+                    </div>
+                    <div class="h-64 relative">
+                        <canvas id="chart1"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 2: Class I / Low Risk Enforcement Level -->
+                <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-5 shadow-lg flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-semibold text-slate-200">圖2. 各國低風險 Class I/A 合規要求強度</h3>
+                            <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">Bar</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mb-4">比較九大監管機構在低風險器材實體貼標與資料庫申報之強制程度分數。</p>
+                    </div>
+                    <div class="h-64 relative">
+                        <canvas id="chart2"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 3: Special Requirement Complexity -->
+                <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-5 shadow-lg flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-semibold text-slate-200">圖3. 各國特殊監管機制 (Special Rules) 佔比</h3>
+                            <span class="text-[10px] text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded">Doughnut</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mb-4">包含 FDA UPC、EU Basic UDI、韓國動態追蹤、沙烏地雙語/AR 等特殊要求。</p>
+                    </div>
+                    <div class="h-64 relative">
+                        <canvas id="chart3"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart Row 2: Charts 4 and 5 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Chart 4: Physical Labeling vs Database Stacked Comparison -->
+                <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-5 shadow-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-semibold text-slate-200">圖4. 實體貼標 (Labeling) vs 資料庫 (GUDID/EUDAMED) 實施進度</h3>
+                        <span class="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">Horizontal Bar</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mb-4">評估各國對 Class I 產品是否同時強制執行標籤印刷與資料庫登錄。</p>
+                    <div class="h-60 relative">
+                        <canvas id="chart4"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 5: Follow-up Questions Operational Domain Breakdown -->
+                <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-5 shadow-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-semibold text-slate-200">圖5. UDI 延伸實務議題之營運領域分佈 (40 題問答總覽)</h3>
+                        <span class="text-[10px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded">Polar Area</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mb-4">涵蓋 IT/MDM、包裝印刷、代理人權責、海關邊境、SaMD/AI 及醫院端的關注比重。</p>
+                    <div class="h-60 relative">
+                        <canvas id="chart5"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Interactive Tables Section -->
+        <section class="space-y-6">
+
+            <!-- Navigation Tabs & Search Controls -->
+            <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
+                    <button onclick="switchTab('tab1')" id="btn-tab1" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white whitespace-nowrap transition">
+                        <i class="fa-solid fa-list-check mr-1.5"></i> 1. 低風險 UDI 法規對照表
+                    </button>
+                    <button onclick="switchTab('tab2')" id="btn-tab2" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-300 whitespace-nowrap transition">
+                        <i class="fa-solid fa-star mr-1.5"></i> 2. 各國特殊監管要求 (Special)
+                    </button>
+                    <button onclick="switchTab('tab3')" id="btn-tab3" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-300 whitespace-nowrap transition">
+                        <i class="fa-solid fa-book-bookmark mr-1.5"></i> 3. 第一輪實務問答 (Q1-Q20)
+                    </button>
+                    <button onclick="switchTab('tab4')" id="btn-tab4" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-300 whitespace-nowrap transition">
+                        <i class="fa-solid fa-graduation-cap mr-1.5"></i> 4. 第二輪高階問答 (Q21-Q40)
+                    </button>
+                </div>
+
+                <!-- Global Search Box -->
+                <div class="relative w-full md:w-64">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                    <input type="text" id="searchInput" onkeyup="filterTables()" placeholder="搜尋關鍵字 (國家、法規、專有名詞)..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+
+            <!-- TAB 1: Lower Risk Class Regulations Across 9 Authorities -->
+            <div id="tab1" class="tab-content block space-y-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="text-base font-bold text-white">低風險（Class I / Class A）醫療器材 UDI 法規要求彙整</h3>
+                        <p class="text-xs text-slate-400">涵蓋美國 FDA、歐盟 MDR/IVDR、澳洲 TGA、新加坡 HSA、巴西 ANVISA、韓國 MFDS、埃及 EDA、沙烏地阿拉伯 SFDA 及台灣 TFDA。</p>
+                    </div>
+                    <button onclick="addRow('table1')" class="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 text-xs text-blue-300 rounded border border-slate-600">
+                        <i class="fa-solid fa-plus mr-1"></i> 新增列
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl border border-slate-700 bg-slate-800/50 shadow-md">
+                    <table id="table1" class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-slate-800 text-slate-200 uppercase font-semibold border-b border-slate-700">
+                            <tr>
+                                <th class="p-3.5 w-1/6">國家 / 監管機構</th>
+                                <th class="p-3.5 w-1/4">實體標籤 (UDI Labeling) 要求</th>
+                                <th class="p-3.5 w-1/4">資料庫申報 (UDI Database) 要求</th>
+                                <th class="p-3.5 w-[30%]">備註與補充說明 (Comments)</th>
+                                <th class="p-3.5 w-12 text-center">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-700/60">
+                            <tr class="hover:bg-slate-700/30 transition">
+                                <td class="p-3.5 font-bold text-blue-400 editable-cell">美國 FDA</td>
+                                <td class="p-3.5 editable-cell">原則強制（須包含 UDI-DI 與 UDI-PI，但特定項目可簡化）</td>
+                                <td class="p-3.5 editable-cell">原則強制（須上傳 UDI-DI 至 GUDID 資料庫）</td>
+                                <td class="p-3.5 editable-cell">特例豁免：一般零售消費性 Class I 器材（OTC）若包裝印有 UPC 碼，UPC 可作為 UDI-DI，且可完全豁免 UDI-PI 標示。</td>
+                                <td class="p-3.5 text-center"><button onclick="deleteRow(this)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                            </tr>
+                            <tr class="hover:bg-slate-700/30 transition">
+                                <td class="p-3.5 font-bold text-blue-400 editable-cell">歐盟 (EU MDR/IVDR)</td>
+                                <td class="p-3.5 editable-cell">強制執行（MDR/IVDR 規範下均須標示 UDI-DI 與 UDI-PI）</td>
+                                <td class="p-3.5 editable-cell">強制上傳（須登錄至 EUDAMED 資料庫之 UDI/Device 模組）</td>
+                                <td class="p-3.5 editable-cell">Basic UDI-DI 特別要求：歐盟獨創 Basic UDI-DI 作為 EUDAMED 資料庫的主鍵值（非標籤載體碼）。Class I 可免除重複使用器材之本體直接標記（Direct Marking）。</td>
+                                <td class="p-3.5 text-center"><button onclick="deleteRow(this)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                            </tr>
+                            <tr class="hover:bg-slate-700/30 transition">
+                                <td class="p-3.5 font-bold text-blue-400 editable-cell">澳洲 TGA</td>
+                                <td class="p-3.5 editable-cell">分階段強制（遵循 Australia UDI 實施時間表）</td>
+                                <td class="p-3.5 editable-cell">強制上傳（須提交至 Australian UDI Database, AusUDID）</td>
+                                <td class="p-3.5 editable-cell">自願性提前合規：Class 1 非植入性/非量測器材屬於最後實施階段，但 TGA 鼓勵製造商提前完成 AusUDID 登錄。</td>
+                                <td class="p-3.5 text-center"><button onclick="deleteRow(this)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                            </tr>
+                            <tr class="hover:bg-slate-700/30 transition">
+                                <td class="p-3.5 font-bold text-blue-400 editable-cell">新加坡 HSA</td>
+                                <td class="p-3.5 editable-cell">自願採行（Voluntary Basis，非強制要求）</td>
+                                <td class="p-3.5 editable-cell">自願採行（可自行選擇是否登錄至 Class A 資料庫）</td>
+                                <td class="p-3.5 editable-cell">極度彈性：根據 GN-36，Class A 低風險器材實體標籤與資料庫登錄均為完全自願。亦採行全球標籤採認政策（接受 FDA/EU 標籤）。</td>
+                                <td class="p-3.5 text-center"><button onclick="deleteRow(this)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                            </tr>
+                            <tr class="hover:bg-slate-700/30 transition">
+                                <td class="p-3.5 font-bold text-blue-400 editable-cell">巴西 ANVISA</td>
+                                <td class="p-3.5 editable-cell">強制執行（實體標籤截止日：2028 年 1 月 10 日）</td>
+                                <td class="p-3.5 editable-cell">強制上傳（SIUD 資料庫申報截止日：2032 年 3 月 1 日）</td>
+                                <td class="p-3.5 editable-cell">實施寬限期最長：依 RDC 591/2021 與 IN 426/2026，Class I 為最後一波執行的風險等級，且實體標籤與資料庫上傳之間有 4 年時間差。</td>
+                                <td class="p-3.5 text-center"><button onclick="deleteRow(this)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                            </tr>
+                            <tr class="hover:bg-slate-700/30 transition">
+                                <td class="p-3.5 font-bold text-blue-400 editable-cell">韓國 MFDS</td>
+                                <td class="p-3.5 editable-cell">全面強制（Class 1 實體標籤與資料庫已於 2023 年 7 月 屆滿）</td>
+                                <td class="p-3.5 editable-cell">全面強制（須登錄至 Integrated Medical Device Information System, IMDIS）</td>
+                                <td class="p-3.5 editable-cell">供應鏈動態追蹤：韓國要求低風險器材製造商/進口商須定期向 IMDIS 通報 UDI 供應鏈出入庫流向數據（Supply Chain Data）。</td>
+                                <td class="p-3.5 text-center"><button onclick="deleteRow(this)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                            </tr>
+                            <tr class="hover:bg-slate-700/30 transition">
+                                <td class="p-3.5 font-bold text-blue-400 editable-cell">埃及 EDA</td>
+                                <td class="p-3.5 editable-cell">分階段強制（逐步推行至 Class I / Low Risk）</td>
+                                <td class="p-3.5 editable-cell">強制上傳（須上傳至埃及 UDI Database / EDA Portal）</td>
+                                <td class="p-3.5 editable-cell">深度參照歐盟機制：埃及藥物管理局（EDA）高度採認歐盟 EU MDR / IVDR 架構，接受具備歐盟 CE 或美國 FDA UDI 標籤之 Class I 產品直接進口。</td>
+                                <td class="p-3.5 text-center"><button onclick="deleteRow(this)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                            </tr>
+                            <tr class="hover:bg-slate-700/30 transition">
+                                <td class="p-3.5 font-bold text-blue-400 editable-cell">沙烏地阿拉伯 SFDA</td>
+                                <td class="p-3.5 editable-cell">全面強制（Class A 全面合規截止日為 2024 年 9 月 1 日，已屆滿）</td>
+                                <td class="p-3.5 editable-cell">全面強制（須登錄至 Saudi-DI / Ramz 資料庫，由當地授權代表 AR 操作）</td>
+                                <td class="p-3.5 editable-cell">雙語與許可證扣合：即便為 Class A 低風險器材，Saudi-DI 資料庫內亦須提供英/阿拉伯文雙語產品描述，並自動扣合 MDMA 許可證。</td>
+                                <td class="p-3.5 text-center"><button onclick="deleteRow(this)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                            </tr>
+                            <tr class="hover:bg-slate-700/30 transition">
+                                <td class="p-3.5 font-bold text-blue-400 editable-cell">台灣 TFDA</td>
+                                <td class="p-3.5 editable-cell">分階段強制（第一級醫療器材依公告時程推行）</td>
+                                <td class="p-3.5 editable-cell">強制上傳（須登錄至「醫療器材單一識別系統資訊平臺」UDI Database）</td>
+                                <td class="p-3.5 editable-cell">優先納管品項：Class I 產品若屬於衛福部指定之特定優先監管品項（如植入相關或特定風險第一級器材），實體貼標與資料庫申報時程會早於一般第一級器材。</td>
+                                <td class="p-3.5 text-center"><button onclick="deleteRow(this)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 2: Special Requirements Across Countries -->
+            <div id="tab2" class="tab-content hidden space-y-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="text-base font-bold text-white">各國 UDI 獨特/特殊監管要求 (Special Requirements) 彙整</h3>
+                        <p class="text-xs text-slate-400">總整超越 IMDRF 通用標準之各國在地特殊監管機制。</p>
+                    </div>
+                    <button onclick="addRow('table2')" class="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 text-xs text-blue-300 rounded border border-slate-600">
+                        <i class="fa-solid fa-plus mr-1"></i> 新增列
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl border border-slate-700 bg-slate-800/50 shadow-md">
+                    <table id="table2" class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-slate-800 text-slate-200 uppercase font-semibold border-b border-slate-700">
+                            <tr>
+                                <th class="p-3.5 w-1/6">國家 / 監管機構</th>
+                                <th class="p-3.5 w-2/5">獨特/特殊 UDI 監管要求 (Special UDI Requirements)</th>
+                                <th class="p-3.5 w-[35%]">備註與補充說明 (Comments)</th>
+                                <th class="p-3.5 w-12 text-center">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-700/60">
+                            <tr class="hover:bg-slate-700/30 transition">
+                                <td class="p-3.5 font-bold text-purple-400 editable-cell">美國 FDA</td>
+                                <td class="p-3.5 editable-cell">UPC 碼替代機制：允許零售消費性醫療器材（OTC Devices）直接以 UPC 碼（Universal Product Code）作為 UDI-DI，並豁免 UDI-PI 標示。</td>
+                                <td class="p-3.5 editable-cell">大幅降低一般藥局、超商販售之家用低風險器材（如 ok 繃、體溫計）之製造商重印條碼的負擔。</td>
+                                <td class="p-3.5 text-center"><button onclick="deleteRow(this)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                            </tr>
+                            <tr class="hover:bg-slate-700/30 transition">
+                                <td class="p-3.5 font-bold text-purple-400 editable-cell">歐盟 (EU MDR)</td>
+                                <td class="p-3.5 editable-cell">Basic UDI-DI 機制：建立「基礎裝置識別碼（Basic UDI-DI）」，專用於 EUDAMED 資料庫中作為同類產品家族（Product Family）的最高層級邏輯主鍵，嚴禁印在實體標籤上。</td>
+                                <td class="p-3.5 editable-cell">實體標籤上印刷的是一般的 UDI-DI 與 UDI-PI。Basic UDI-DI 僅出現在合規聲明書（DoC）、技術文件與證書上。</td>
+                                <td class="p-3.5 text-center"><button onclick="deleteRow(this)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                            </tr>
+                            <tr class="hover:bg-slate-700/30 transition">
+                                <td class="p-3.5 font-bold text-purple-400 editable-cell">澳洲 TGA</td>
+                                <td class="p-3.5 editable-cell">與 ARTG 註冊編號強制對接：AusUDID 資料庫欄位設計與澳洲醫療器材系統（ARTG Entry）高度整合，必須建立 UDI-DI 與 ARTG 連動關係。</td>
+                                <td class="p-3.5 editable-cell">TGA 強調 UDI 必須能與澳洲國家健康數據標準（National Health Data Dictionary）相容。</td>
+                                <td class="p-3.5 text-center"><button onclick="deleteRow(this)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                            </tr>
+                            <tr class="hover:bg-slate-700/30 transition">
+                                <td class="p-3.5 font-bold text-purple-400 editable-cell">新加坡 HSA</td>
+                                <td class="p-3.5 editable-cell">全球標籤採認政策（Global Label Acceptance Policy）與 SHARE Portal 整合：只要產品印有符合美國 FDA 或歐盟 MDR/IVDR 規範的 UDI 標籤，免在新加坡進行二次貼標（No Re-labeling）。</td>
+                                <td class="p-3.5 editable-cell">HSA 於 2025 年上線全新的 SHARE 門戶系統，將 UDI-DI 數據直接整合進 SMDR 與 Class A 註冊資料庫中。</td>
+                                <td class="p-3.5 text-center"><button onclick="deleteRow(this)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                            </tr>
+                            <tr class="hover:bg-slate-700/30 transition">
+                                <td class="p-3.5 font-bold text-purple-400 editable-cell">巴西 ANVISA</td>
+                                <td class="p-3.5 editable-cell">60 天更正寬限期與 30 天異動申報：首度上傳 UDI-DI 至 SIUD 資料庫後享有 60 天打字錯誤修訂期；若發生市場停售、召回或註冊過戶，須於 30 天內 更新 SIUD 數據。</td>
+                                <td class="p-3.5 editable-cell">外國製造商必須授權巴西註冊持有人（BRH）透過 Solicita 入口或 M2M API 進行資料庫維護。</td>
+                                <td class="p-3.5 text-center"><button onclick="deleteRow(this)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                            </tr>
+                            <tr class="hover:bg-slate-700/30 transition">
+                                <td class="p-3.5 font-bold text-purple-400 editable-cell">韓國 MFDS</td>
+                                <td class="p-3.5 editable-cell">UDI 供應鏈流通數據動態通報（Supply Chain Tracking）：不僅要求標籤與資料庫登錄，還強制要求醫療器材製造商、進口商及批發商須按月/按季向 IMDIS 系統申報 UDI 出入庫與流通紀錄。</td>
+                                <td class="p-3.5 editable-cell">韓國是少數將 UDI 制度直接延伸至供應鏈動態進銷存追蹤的國家（非僅限於靜態主數據登錄）。</td>
+                                <td class="p-3.5 text-center"><button onclick="deleteRow(this)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                            </tr>
+                            <tr class="hover:bg-slate-700/30 transition">
+                                <td class="p-3.5 font-bold text-purple-400 editable-cell">埃及 EDA</td>
+                                <td class="p-3.5 editable-cell">進口通關單據 UDI 交叉比對：埃及海關與 EDA 系統連線，要求進口報單（Import Declaration）上載明的 UDI 數據必須與 EDA UDI Database 內預先登記的資料完全一致始得放行。</td>
+                                <td class="p-3.5 editable-cell">強調邊境海關實務查驗，防止仿冒與非法醫療器材進入埃及市場。</td>
+                                <td class="p-3.5 text-center"><button onclick="deleteRow(this)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                            </tr>
+                            <tr class="hover:bg-slate-700/30 transition">
+                                <td class="p-3.5 font-bold text-purple-400 editable-cell">沙烏地阿拉伯 SFDA</td>
+                                <td class="p-3.5 editable-cell">AR 授權代表獨占申報權與 10 天異動申報：外國製造商無法直接操作系統，須透過沙烏地授權代表（AR）經由 GHAD 門戶登錄 Saudi-DI（Ramz）；重大變更須於 10 天內 完成更新，否則面臨 MDMA 許可證暫停。</td>
+                                <td class="p-3.5 editable-cell">系統具備自動扣合 MDMA 許可證（自動提取 14 項欄位）功能，且商業名稱與產品描述強制要求英/阿拉伯文雙語。</td>
+                                <td class="p-3.5 text-center"><button onclick="deleteRow(this)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                            </tr>
+                            <tr class="hover:bg-slate-700/30 transition">
+                                <td class="p-3.5 font-bold text-purple-400 editable-cell">台灣 TFDA</td>
+                                <td class="p-3.5 editable-cell">醫療器材單一識別系統資訊平臺（UDI Database）與包裝層級綁定：要求明確申報各層級包裝（如單品包裝、最小販售包裝、外箱包裝）之 UDI-DI 及其對應關係，並與衛福部醫療器材許可證系統進行勾稽。</td>
+                                <td class="p-3.5 editable-cell">製造商或藥商須於產品上市前完成 UDI 資訊之申報，並於變更時及時更新平臺資料。</td>
+                                <td class="p-3.5 text-center"><button onclick="deleteRow(this)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 3: First Round Follow-up Q&A Repository (Q1 - Q20) -->
+            <div id="tab3" class="tab-content hidden space-y-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="text-base font-bold text-white">第一輪延伸實務問答資料庫 (Q1 - Q20)</h3>
+                        <p class="text-xs text-slate-400">涵蓋通用 UDI 標籤設計、代理人變更、本體直接標註及 SaMD 軟體版次更新管理。</p>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl border border-slate-700 bg-slate-800/50 shadow-md">
+                    <table id="table3" class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-slate-800 text-slate-200 uppercase font-semibold border-b border-slate-700">
+                            <tr>
+                                <th class="p-3.5 w-16">編號</th>
+                                <th class="p-3.5 w-1/4">探討主題</th>
+                                <th class="p-3.5 w-2/3">各國法規實務與解答說明 (Detailed Answers & Solutions)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-700/60">
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-amber-400">Q1</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">通用 UDI 標籤設計策略</td><td class="p-3.5 editable-cell">採行 GS1 GTIN 統一 UDI-DI，印刷一般的 UDI-DI 與 UDI-PI（AIDC 條碼 + HRI 文字），不印歐盟 Basic UDI-DI。可同時滿足美國 (UPC 覆蓋)、歐盟及新加坡 HSA 全球採認。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-amber-400">Q2</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">跨國多市場 SKU 庫存管理</td><td class="p-3.5 editable-cell">採「最高標準覆蓋法」。銷往巴西或沙烏地等強制市場時出廠即完整貼標，美/歐低風險市場接收完整 UDI 包裝不違反法規。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-amber-400">Q3</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">Class A 自願標註與區域影響</td><td class="p-3.5 editable-cell">新加坡 HSA 自願標註不影響合規，但馬來西亞/印尼若進入強制期仍須依當地時程辦理，建議外國原廠維持統一貼標。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-amber-400">Q4</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">手術便利包/組合包標註</td><td class="p-3.5 editable-cell">最外層組合包包裝必須具備獨立 UDI-DI；內部組件若單獨銷售/使用需 UDI，若僅限套組內一次性使用且不單獨上市則內包裝可免除。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-amber-400">Q5</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">Basic UDI-DI 與 Primary DI 差異</td><td class="p-3.5 editable-cell">Basic UDI-DI 是歐盟行政與技術文件主鍵（不上標籤）；Primary DI（如 GTIN）是實體標籤條碼碼。PLM 系統應分別設為 Family Level 與 SKU Level。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-amber-400">Q6</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">韓國 MFDS 供應鏈動態追蹤</td><td class="p-3.5 editable-cell">韓國進口商須按月/按批次於 IMDIS 申報進出庫與銷售 UDI-DI/PI 流向。跨國原廠需在 ERP 出貨單 (ASN) 中提供完整 UDI 數據檔。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-amber-400">Q7</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">沙烏地 SFDA 阿拉伯文更新時限</td><td class="p-3.5 editable-cell">英文 Master Data 變更時，授權代表 (AR) 須於 10 天內完成 Saudi-DI (Ramz) 阿拉伯文更新，否則面臨 MDMA 許可證暫停。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-amber-400">Q8</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">巴西 ANVISA 60 天更正寬限期</td><td class="p-3.5 editable-cell">超越 60 天寬限期後 SIUD 鎖定，BRH 須向 ANVISA 提出行政申訴與 CAPA 報告經審核後始可解鎖修訂。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-amber-400">Q9</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">可重複使用器材本體直接標記</td><td class="p-3.5 editable-cell">各國通常給予額外 1-2 年寬限期。若直接標記（如雷射蝕刻）破壞結構或滅菌完整性，經風險評估驗證可免除。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-amber-400">Q10</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">極小體積產品之標籤替代</td><td class="p-3.5 editable-cell">體積過小無法容納 AIDC/HRI 時，允許將 UDI 標註於上一層包裝或隨附 IFU，但可重複使用器材仍需評估本體打標。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-amber-400">Q11</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">發碼機構切換（HIBCC 至 GS1）</td><td class="p-3.5 editable-cell">變更發碼機構會產生全新 UDI-DI。既有資料庫紀錄須標註為 Deactivated，並建立全新 UDI-DI 紀錄。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-amber-400">Q12</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">RFID 技術與備援條碼要求</td><td class="p-3.5 editable-cell">美 FDA 與沙烏地 SFDA 均規定，即便採用 RFID，實體包裝上仍必須保留一維/二維圖形條碼與 HRI 人眼可讀文字。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-amber-400">Q13</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">代理人更換與 UDI 數據轉移</td><td class="p-3.5 editable-cell">辦理許可證過戶（Transfer of Ownership）時，系統會自動劃轉 UDI-DI 權限給新 AR/BRH，新代理人須於 30 天內完成驗證。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-amber-400">Q14</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">全新 UDI-DI 核發判定標準</td><td class="p-3.5 editable-cell">品牌名稱、型號規格、包裝層級數量、滅菌狀態或醫療意圖改變時，依 IMDRF 原則必須核發全新 UDI-DI。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-amber-400">Q15</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">台灣 TFDA 邊境與進口 UDI 稽查</td><td class="p-3.5 editable-cell">若實體標籤 UDI-PI 與報關單據不符，邊境將判定為不合格面臨退運。藥商須確保報關單據與包裝 AIDC 100% 一致。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-amber-400">Q16</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">埃及/沙烏地海關 UDI 扣留處置</td><td class="p-3.5 editable-cell">若因未啟用登錄扣貨，AR 須立即登入門戶補登並提供切結書，嚴重時須由主管機關開立臨時放行核准函。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-amber-400">Q17</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">醫療軟體 (SaMD) UDI 呈現與更新</td><td class="p-3.5 editable-cell">SaMD 須在 About 畫面顯示 UDI。大版次更新（Major Change）須核發新 UDI-DI；小修復（Minor Patch）僅更新 UDI-PI 軟體版本號。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-amber-400">Q18</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">雲端 SaaS 軟體頻繁迭代 UDI 管理</td><td class="p-3.5 editable-cell">採行邏輯版本分離：影響臨床安全/意圖的 Major Release 更新 UDI-DI；例行 CI/CD 僅更新 UDI-PI 建置號。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-amber-400">Q19</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">全球 UDI 專案 Roadmap 規劃</td><td class="p-3.5 editable-cell">以資料庫自動化 + 標籤架構模組化為核心，優先投資 MDM 系統與 BarTender/NiceLabel 自動化對接。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-amber-400">Q20</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">醫院端 UDI 掃描與 PMS 效益</td><td class="p-3.5 editable-cell">UDI 寫入 EMR 與 Registry 使 PMS 能快速對接事故紀錄，精準將召回目標縮小至特定 UDI-PI 批號降低損失。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 4: Second Round Advanced Q&A Repository (Q21 - Q40) -->
+            <div id="tab4" class="tab-content hidden space-y-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="text-base font-bold text-white">第二輪高階延伸實務問答資料庫 (Q21 - Q40)</h3>
+                        <p class="text-xs text-slate-400">涵蓋 MDM API、AI 生成演算法、ESG 環保標籤、醫院端 CDSS 阻斷與未來法規演進。</p>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl border border-slate-700 bg-slate-800/50 shadow-md">
+                    <table id="table4" class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-slate-800 text-slate-200 uppercase font-semibold border-b border-slate-700">
+                            <tr>
+                                <th class="p-3.5 w-16">編號</th>
+                                <th class="p-3.5 w-1/4">探討主題</th>
+                                <th class="p-3.5 w-2/3">各國高階法規實務與解答說明 (Advanced Practice & Technical Answers)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-700/60">
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-indigo-400">Q21</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">全球 MDM 系統資料分發 (Syndication)</td><td class="p-3.5 editable-cell">建構中央 MDM 主數據庫，採用 GS1 GDSN 或 RIM 系統以 GS1 國際欄位為核心，透過 API 自動映射分發至 GUDID, EUDAMED, SHARE 及 Saudi-DI。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-indigo-400">Q22</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">ERP 批號特殊符號解析錯誤</td><td class="p-3.5 editable-cell">批號應嚴格遵循 GS1/HIBCC 條碼語法，避免在批號字串中使用斜線 `/`、空格 ` `、逗號 `,`，生成規則建議僅保留「字母+數字+連字號 `-`」。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-indigo-400">Q23</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">M2M API 傳輸協定差異（ANVISA vs EUDAMED）</td><td class="p-3.5 editable-cell">ANVISA SIUD 採 RESTful API (JSON/XML) 與 ICP-Brasil 憑證；EUDAMED 採 eDelivery AS4 網關。兩者加密與管道不同，API 須分開建置。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-indigo-400">Q24</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">10天/30天異動變更自動化警示</td><td class="p-3.5 editable-cell">PLM/QMS 須建置 ECN 連動，當 ECO 涉及 UDI 核心屬性時自動派發 Task 給各地 AR，並啟動 10 天(沙烏地)/30 天(巴西) 倒數警示管報。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-indigo-400">Q25</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">線上視覺系統 (Vision System) 驗證</td><td class="p-3.5 editable-cell">配置符合 ISO/IEC 15415/15416 照相 Verifier，判定門檻設為 Grade B 以上（降至 Grade C/D 自動停機退件），並記錄備查。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-indigo-400">Q26</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">CMO/OEM 權責劃分與品質合約</td><td class="p-3.5 editable-cell">品牌方負責 UDI-DI 生成、分配與資料庫申報；代工廠（CMO）僅負責依樣張列印、條碼等級驗證，並記錄批號回傳品牌方。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-indigo-400">Q27</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">深冷/冷鏈包裝 UDI 標籤抗性測試</td><td class="p-3.5 editable-cell">標籤貼紙與碳帶須通過 ISO 23907 / ASTM D4169 模擬運輸與冷熱衝擊；-80°C 深冷須採用專用低溫丙烯酸膠粘劑與熱轉印合成紙。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-indigo-400">Q28</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">經銷商補貼標/重新包裝（Re-labeling）</td><td class="p-3.5 editable-cell">經銷商貼標須具備原廠授權與 GMP/ISO 13485。二次貼標不得遮蔽原廠警語或變動 UDI-DI，更換包裝層級須重新進行條碼等級驗證。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-indigo-400">Q29</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">海關邊境斷線與備援通關機制</td><td class="p-3.5 editable-cell">若海關連線中斷，AR 須現場提供 Saudi-DI / EDA 資料庫下載之 PDF 登記證明（Active Certificate）與原廠切結書進行臨時放行。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-indigo-400">Q30</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">歐盟事故通報與 UDI 精準鎖定</td><td class="p-3.5 editable-cell">MIR 報告須填寫 Basic UDI-DI（鎖定家族）與特定 UDI-DI/PI（鎖定具體批號），藉此精準界定召回範圍（FSCA）避免擴大下架。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-indigo-400">Q31</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">韓國 IMDIS 流通數據跨區轉售處置</td><td class="p-3.5 editable-cell">若轉售給非預定醫療機構，受轉讓方於 IMDIS 驗收會產生警示，進口商須於 5 工作天內提交流通變更說明書，否則面臨查核。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-indigo-400">Q32</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">台灣 TFDA 專案稽查重點與違規態樣</td><td class="p-3.5 editable-cell">稽查重點：條碼可讀性、與平台申報一致性、藥商進銷存紀錄。常見違規為未於上市前完成平台申報或未印 UDI，將依醫材法開罰。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-indigo-400">Q33</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">生成式 AI / 連續學習型 SaMD 之 UDI 變更</td><td class="p-3.5 editable-cell">演算法更新若導致臨床意圖、效能指標或安全風險邊界改變，判定為 Major Update 必須核發全新 UDI-DI；例行優化僅更新 UDI-PI。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-indigo-400">Q34</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">行動醫療 App (Mobile Apps) UDI 呈現</td><td class="p-3.5 editable-cell">UDI 須呈現在：(1) 軟體內部「關於 (About)」選單或設定頁；(2) 應用程式商店（App Store/Play Store）文字描述欄位。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-indigo-400">Q35</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">複合型醫療系統（硬體+軟體+雲端）UDI 架構</td><td class="p-3.5 editable-cell">採行主從式 UDI 架構（Parent-Child）：主機/硬體本體具備主要 UDI-DI；獨立 SaMD 與雲端平台具備獨立 UDI-DI 並登錄為子組件。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-indigo-400">Q36</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">東協（越南、菲律賓、印尼）UDI 進度</td><td class="p-3.5 editable-cell">新加坡已推行，星馬草案預計 2026-2027 年強制高風險；越南印尼規劃 2027-2028 年導入，原則採認美/歐 UDI 標籤。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-indigo-400">Q37</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">拉美地區（墨西哥 COFEPRIS、哥倫比亞 INVIMA）</td><td class="p-3.5 editable-cell">墨西哥與哥倫比亞評估巴西 ANVISA 經驗，預計 2026 年底頒布草案，採取與 IMDRF 相容之分階段路線並給予 3-5 年過渡期。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-indigo-400">Q38</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">醫院端 CDSS 系統連動與不良攔截</td><td class="p-3.5 editable-cell">給藥或使用前掃描 UDI，系統將 UDI-PI 與即時召回庫連線，遇過期或已通報召回器材會立即發出警報並阻斷使用程序。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-indigo-400">Q39</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">數位標籤 (e-Labeling) 替代實體 UDI 可行性</td><td class="p-3.5 editable-cell">監管機構（FDA, MDR, SFDA, TFDA）均堅持 UDI 必須印刷於實體包裝/標籤上，e-Labeling 僅能作為 e-IFU 載體無法替代實體 UDI。</td></tr>
+                            <tr class="hover:bg-slate-700/30 transition"><td class="p-3.5 font-bold text-indigo-400">Q40</td><td class="p-3.5 font-semibold text-slate-200 editable-cell">UDI 專案查核 (Audit) 必備文件</td><td class="p-3.5 editable-cell">備齊：UDI 生成 SOP、全球資料庫登錄證明、條碼印製與視覺系統驗證報告 (ISO 15415)、ECN 評估紀錄及代理人數據維護合約。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Section: 20 Comprehensive New Follow-up Questions -->
+        <section class="bg-slate-800/90 border border-slate-700 rounded-xl p-6 space-y-4 shadow-xl">
+            <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+                <h2 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-circle-question text-amber-400"></i> 前瞻延伸思考：20 個 UDI 全球戰略與營運深度探討問題
+                </h2>
+                <span class="text-xs text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">前瞻議題</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div class="space-y-3">
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                        <span class="font-bold text-blue-400">【全球供應鏈合規】Q1. 多元標籤版面設計：</span>
+                        <p class="text-slate-300 mt-1">當全球 UDI 法規產生衝突（如特定國家語文要求 vs 美/歐原廠包裝保持），製造商應如何設計多國通用標籤（Multi-country Label）？</p>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                        <span class="font-bold text-blue-400">【全球供應鏈合規】Q2. 包裝廠緊急更換驗證：</span>
+                        <p class="text-slate-300 mt-1">若面臨供應鏈中斷需要緊急更換第三方包裝廠或列印設備，如何在 ISO 13485 QMS 規範下快速完成 UDI 條碼驗證？</p>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                        <span class="font-bold text-blue-400">【全球供應鏈合規】Q3. 平行輸入與防偽追蹤：</span>
+                        <p class="text-slate-300 mt-1">原廠如何透過 UDI-DI 與 UDI-PI 大數據追蹤，協助各地海關與代理人防範灰市（Gray Market）與假冒器材？</p>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                        <span class="font-bold text-blue-400">【全球供應鏈合規】Q4. 地緣政治代理人權限：</span>
+                        <p class="text-slate-300 mt-1">當國際制裁或代理人帳戶被凍結時，外國製造商如何確保該國 UDI 資料庫內的產品主數據不被強制下架？</p>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                        <span class="font-bold text-purple-400">【數據治理與 AI】Q5. 生成式 AI 填報 LLM：</span>
+                        <p class="text-slate-300 mt-1">如何利用生成式 AI 與 LLM 自動擷取 PLM 技術文件，自動生成並填報 EUDAMED、Saudi-DI、SHARE 欄位數據？</p>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                        <span class="font-bold text-purple-400">【數據治理與 AI】Q6. 海量 SKU 自動比對：</span>
+                        <p class="text-slate-300 mt-1">當企業擁有超過 50,000 項 SKU 時，如何建立自動化 Data Reconciliation 機制每週掃描全球各資料庫微小差異？</p>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                        <span class="font-bold text-purple-400">【數據治理與 AI】Q7. 企業併購 M&A UDI 轉移：</span>
+                        <p class="text-slate-300 mt-1">收購新產品線時，如何評估並執行被收購品牌 UDI-DI 的轉移、更換時程與全球資料庫的平行交接？</p>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                        <span class="font-bold text-purple-400">【數據治理與 AI】Q8. 雲端 MDM 資安勒索應變：</span>
+                        <p class="text-slate-300 mt-1">雲端 MDM 系統若遭遇勒索軟體攻擊，企業之 UDI 備援機制與向監管機構通報數據中斷的 SOP 為何？</p>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                        <span class="font-bold text-emerald-400">【智慧醫療與醫院端】Q9. 歐盟 MDR 植入卡規範：</span>
+                        <p class="text-slate-300 mt-1">歐盟 MDR 植入卡（Implant Card）上的 UDI 資訊呈現方式與實體包裝標籤有何技術規格差異？</p>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                        <span class="font-bold text-emerald-400">【智慧醫療與醫院端】Q10. HIS 醫院閉環介接：</span>
+                        <p class="text-slate-300 mt-1">醫療機構推動閉環 UDI 管理時，製造商應提供何種格式的主數據（如 GDSN XML）以利 HIS 系統無縫介接？</p>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                        <span class="font-bold text-emerald-400">【智慧醫療與醫院端】Q11. IoT 生理器材資安綁定：</span>
+                        <p class="text-slate-300 mt-1">結合 IoT 的生理監測器材，其連網封包中是否應強制寫入 UDI-DI/PI，以供醫療資安系統識別合法設備？</p>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                        <span class="font-bold text-emerald-400">【智慧醫療與醫院端】Q12. 醫院手動輸入錯誤抗辯：</span>
+                        <p class="text-slate-300 mt-1">當醫院因 UDI 掃描失敗而手動輸入錯誤條碼歸因事故時，製造商應具備何種數位證據能力（Audit Trail）提出申訴？</p>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                        <span class="font-bold text-amber-400">【SaMD 與 ESG】Q13. 微服務 SaMD 部署 UDI：</span>
+                        <p class="text-slate-300 mt-1">採用 Microservices 與 Docker 架構的 SaMD，當個別微服務獨立進行 CI/CD 部署時，UDI-PI 版本號應如何架構？</p>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                        <span class="font-bold text-amber-400">【SaMD 與 ESG】Q14. DICOM 影像標頭 UDI 寫入：</span>
+                        <p class="text-slate-300 mt-1">醫學影像 AI 分析軟體輸入多台 CT/MRI 影像時，SaMD 如何將自身 UDI 與硬體 UDI 寫入 DICOM Header？</p>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                        <span class="font-bold text-amber-400">【SaMD 與 ESG】Q15. QR Code 防偽與區塊鏈：</span>
+                        <p class="text-slate-300 mt-1">若未來開放以 QR Code 連至 e-Labeling，其 UDI 條碼之安全防偽與防篡改機制（Blockchain/Hash）應如何建置？</p>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                        <span class="font-bold text-amber-400">【SaMD 與 ESG】Q16. 生物可降解包裝印刷衝擊：</span>
+                        <p class="text-slate-300 mt-1">環保可降解包裝材料表面張力與吸墨性差異，對高密度二維 UDI 條碼的印字對比度會產生何種挑戰？</p>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                        <span class="font-bold text-rose-400">【稽查與未來趨勢】Q17. 美國 FDA GUDID 2.0 預估：</span>
+                        <p class="text-slate-300 mt-1">美國 FDA 評估推行「GUDID 2.0」之未來修法方向為何？企業現在應如何預先佈局其數據架構？</p>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                        <span class="font-bold text-rose-400">【稽查與未來趨勢】Q18. EUDAMED 全模組強制條款：</span>
+                        <p class="text-slate-300 mt-1">當 EUDAMED 全模組全面強制上線後，對未完成登錄之舊有指令（MDD/AIMDD）過渡期產品有何強制處分？</p>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                        <span class="font-bold text-rose-400">【稽查與未來趨勢】Q19. 3D 列印醫材現場 UDI：</span>
+                        <p class="text-slate-300 mt-1">主管機關研議將 UDI 延伸至「個人化 3D 列印醫療器材」，列印現場即時生成 UDI 的合規流程應如何設計？</p>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                        <span class="font-bold text-rose-400">【稽查與未來趨勢】Q20. 全球 Steering Committee 組織：</span>
+                        <p class="text-slate-300 mt-1">跨國醫療器材公司應如何設計內部的「UDI 全球治理委員會（Global Steering Committee）」組織架構與權責？</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Page Footer -->
+    <footer class="bg-slate-800/80 border-t border-slate-700 py-6 px-4 text-center text-xs text-slate-400">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
+            <div>© 全球醫療器材 UDI 法規資訊戰略儀表板 | 彙整 FDA, EU, TGA, HSA, ANVISA, MFDS, EDA, SFDA, TFDA</div>
+            <div class="flex items-center gap-4 text-slate-400">
+                <span><i class="fa-solid fa-code text-blue-400 mr-1"></i> HTML5 + Tailwind + Chart.js</span>
+                <span><i class="fa-solid fa-download text-emerald-400 mr-1"></i> 支援動態修訂與雙格式下載</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-blue-600 text-white text-xs px-4 py-2.5 rounded-xl shadow-2xl transition opacity-0 pointer-events-none flex items-center gap-2 z-50">
+        <i class="fa-solid fa-circle-check"></i> <span id="toastMsg">操作已成功完成</span>
+    </div>
+
+    <!-- JavaScript logic & Chart.js initialization -->
+    <script>
+        let isEditMode = false;
+
+        // Initialize Page and Charts
+        window.onload = function() {
+            initCharts();
+        };
+
+        // Show Toast Notification
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            toastMsg.innerText = msg;
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            toast.classList.add('opacity-100');
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+
+        // Toggle Edit Mode
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            const cells = document.querySelectorAll('.editable-cell');
+            const editBtnText = document.getElementById('editBtnText');
+            
+            cells.forEach(cell => {
+                cell.contentEditable = isEditMode ? "true" : "false";
+            });
+
+            if (isEditMode) {
+                editBtnText.innerText = '完成並鎖定編輯';
+                showToast('已開啟表格編輯模式！您可以直接點擊表格單元格修改文字。');
+            } else {
+                editBtnText.innerText = '開啟編輯模式';
+                showToast('編輯模式已鎖定。');
+            }
+        }
+
+        // Tab Switcher
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white');
+                btn.classList.add('bg-slate-700', 'text-slate-300');
+            });
+
+            document.getElementById(tabId).classList.remove('hidden');
+            const activeBtn = document.getElementById('btn-' + tabId);
+            activeBtn.classList.remove('bg-slate-700', 'text-slate-300');
+            activeBtn.classList.add('bg-blue-600', 'text-white');
+        }
+
+        // Filter Table Rows by Search Keyword
+        function filterTables() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const activeTab = document.querySelector('.tab-content:not(.hidden)');
+            const rows = activeTab.querySelectorAll('tbody tr');
+
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(query) ? '' : 'none';
+            });
+        }
+
+        // Add Row to Table
+        function addRow(tableId) {
+            const tbody = document.querySelector(`#${tableId} tbody`);
+            const newRow = document.createElement('tr');
+            newRow.className = "hover:bg-slate-700/30 transition";
+
+            if (tableId === 'table1') {
+                newRow.innerHTML = `
+                    <td class="p-3.5 font-bold text-blue-400 editable-cell" contenteditable="${isEditMode}">新國家/機構</td>
+                    <td class="p-3.5 editable-cell" contenteditable="${isEditMode}">請輸入標籤要求...</td>
+                    <td class="p-3.5 editable-cell" contenteditable="${isEditMode}">請輸入資料庫要求...</td>
+                    <td class="p-3.5 editable-cell" contenteditable="${isEditMode}">請輸入備註說明...</td>
+                    <td class="p-3.5 text-center"><button onclick="deleteRow(this)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                `;
+            } else if (tableId === 'table2') {
+                newRow.innerHTML = `
+                    <td class="p-3.5 font-bold text-purple-400 editable-cell" contenteditable="${isEditMode}">新國家/機構</td>
+                    <td class="p-3.5 editable-cell" contenteditable="${isEditMode}">請輸入特殊要求...</td>
+                    <td class="p-3.5 editable-cell" contenteditable="${isEditMode}">請輸入備註說明...</td>
+                    <td class="p-3.5 text-center"><button onclick="deleteRow(this)" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i></button></td>
+                `;
+            }
+            tbody.appendChild(newRow);
+            showToast('已成功新增一行表格！');
+        }
+
+        // Delete Table Row
+        function deleteRow(btn) {
+            const row = btn.closest('tr');
+            row.remove();
+            showToast('已刪除該列數據。');
+        }
+
+        // Export Data to Markdown (.md)
+        function exportMarkdown() {
+            let md = `# 全球醫療器材 UDI 法規與低風險產品合規報告\n\n`;
+            md += `生成時間：${new Date().toLocaleString('zh-TW')}\n\n`;
+
+            // Table 1
+            md += `## 1. 低風險（Class I / Class A）醫療器材 UDI 法規要求彙整\n\n`;
+            md += `| 國家 / 監管機構 | 實體標籤要求 | 資料庫申報要求 | 備註與補充說明 |\n`;
+            md += `| --- | --- | --- | --- |\n`;
+            document.querySelectorAll('#table1 tbody tr').forEach(row => {
+                const cols = row.querySelectorAll('td');
+                if (cols.length >= 4) {
+                    md += `| ${cols[0].innerText.trim()} | ${cols[1].innerText.trim()} | ${cols[2].innerText.trim()} | ${cols[3].innerText.trim()} |\n`;
+                }
+            });
+
+            // Table 2
+            md += `\n## 2. 各國 UDI 獨特/特殊監管要求 (Special Requirements)\n\n`;
+            md += `| 國家 / 監管機構 | 獨特/特殊 UDI 監管要求 | 備註與補充說明 |\n`;
+            md += `| --- | --- | --- |\n`;
+            document.querySelectorAll('#table2 tbody tr').forEach(row => {
+                const cols = row.querySelectorAll('td');
+                if (cols.length >= 3) {
+                    md += `| ${cols[0].innerText.trim()} | ${cols[1].innerText.trim()} | ${cols[2].innerText.trim()} |\n`;
+                }
+            });
+
+            // Download MD File
+            const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Global_UDI_Regulations_Report_${new Date().toISOString().slice(0,10)}.md`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('已成功下載 Markdown (.md) 檔案！');
+        }
+
+        // Export Full Page as HTML (.html)
+        function exportHTML() {
+            const pageHTML = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+            const blob = new Blob([pageHTML], { type: 'text/html;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Global_UDI_Interactive_Dashboard_${new Date().toISOString().slice(0,10)}.html`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('已成功匯出完整 HTML 檔案！');
+        }
+
+        function initCharts() {
+            // Chart 1: Radar Chart for Focus 5 Countries
+            new Chart(document.getElementById('chart1'), {
+                type: 'radar',
+                data: {
+                    labels: ['標籤強制度', '資料庫強制度', '代理人依賴度', '實施時間緊迫性', '特殊規則複雜度'],
+                    datasets: [
+                        { label: '巴西 ANVISA', data: [9, 8, 9, 7, 8], borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.2)' },
+                        { label: '新加坡 HSA', data: [3, 2, 4, 3, 5], borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.2)' },
+                        { label: '澳洲 TGA', data: [7, 8, 6, 8, 7], borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.2)' },
+                        { label: '埃及 EDA', data: [8, 8, 7, 8, 8], borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.2)' },
+                        { label: '沙烏地 SFDA', data: [10, 10, 10, 10, 9], borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.2)' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { r: { grid: { color: '#334155' }, angleLines: { color: '#475569' }, pointLabels: { color: '#94a3b8', font: { size: 10 } }, ticks: { display: false } } },
+                    plugins: { legend: { labels: { color: '#cbd5e1', font: { size: 10 } } } }
+                }
+            });
+
+            // Chart 2: Enforcement Score across 9 countries
+            new Chart(document.getElementById('chart2'), {
+                type: 'bar',
+                data: {
+                    labels: ['US FDA', 'EU MDR', 'TGA', 'HSA', 'ANVISA', 'MFDS', 'EDA', 'SFDA', 'TFDA'],
+                    datasets: [{
+                        label: 'Class I 法規管制強度得分 (1-10)',
+                        data: [7, 9, 7, 2, 8, 10, 8, 10, 7],
+                        backgroundColor: ['#3b82f6', '#2563eb', '#0284c7', '#10b981', '#f59e0b', '#dc2626', '#8b5cf6', '#ef4444', '#06b6d4']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, max: 10, grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 9 } } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Chart 3: Special Rules Doughnut Chart
+            new Chart(document.getElementById('chart3'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['FDA UPC 豁免', 'EU Basic UDI-DI', '韓國供應鏈追蹤', '沙烏地 Ramz/雙語', '巴西 60天寬限/BRH', '埃及 海關比對', '其他'],
+                    datasets: [{
+                        data: [15, 20, 20, 18, 12, 10, 5],
+                        backgroundColor: ['#3b82f6', '#8b5cf6', '#ef4444', '#f59e0b', '#10b981', '#06b6d4', '#64748b']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right', labels: { color: '#cbd5e1', font: { size: 10 } } } }
+                }
+            });
+
+            // Chart 4: Labeling vs Database Horizontal Stacked Bar
+            new Chart(document.getElementById('chart4'), {
+                type: 'bar',
+                data: {
+                    labels: ['美國 FDA', '歐盟 MDR', '澳洲 TGA', '新加坡 HSA', '巴西 ANVISA', '韓國 MFDS', '沙烏地 SFDA'],
+                    datasets: [
+                        { label: '實體貼標 (Labeling)', data: [8, 9, 7, 2, 8, 10, 10], backgroundColor: '#3b82f6' },
+                        { label: '資料庫申報 (Database)', data: [9, 9, 7, 2, 6, 10, 10], backgroundColor: '#10b981' }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                        y: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } }
+                    },
+                    plugins: { legend: { labels: { color: '#cbd5e1', font: { size: 10 } } } }
+                }
+            });
+
+            // Chart 5: Polar Area for 40 Questions Category Distribution
+            new Chart(document.getElementById('chart5'), {
+                type: 'polarArea',
+                data: {
+                    labels: ['IT / MDM 自動化', '包裝與條碼驗證', '代理人/海關合規', 'PMS 與醫院端 CDSS', 'SaMD / AI 軟體', 'ESG 與未來的趨勢'],
+                    datasets: [{
+                        data: [9, 7, 8, 6, 5, 5],
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.7)',
+                            'rgba(16, 185, 129, 0.7)',
+                            'rgba(245, 158, 11, 0.7)',
+                            'rgba(139, 92, 246, 0.7)',
+                            'rgba(236, 72, 153, 0.7)',
+                            'rgba(6, 182, 212, 0.7)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { r: { grid: { color: '#334155' }, ticks: { display: false } } },
+                    plugins: { legend: { position: 'right', labels: { color: '#cbd5e1', font: { size: 9 } } } }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TFDA MedDevice Copilot Pro - 醫療器材查驗登記智慧審查平台</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        medical: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#035485',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                            950: '#082f49'
+                        },
+                        emerald: {
+                            500: '#10b981',
+                            600: '#059669'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Marked.js for Markdown Rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- JSZip for Zip Unpacking -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- PDF-Lib for PDF Trimming -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+        body {
+            font-family: 'Noto Sans TC', 'Inter', sans-serif;
+        }
+        .prose pre {
+            background-color: #1e293b;
+            color: #f8fafc;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+        }
+        .prose table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        .prose th, .prose td {
+            border: 1px solid #334155;
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+        }
+        .prose th {
+            background-color: #0f172a;
+            color: #38bdf8;
+        }
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-medical-500 selection:text-white">
+
+    <!-- Top Header -->
+    <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50 backdrop-blur-md bg-opacity-90">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-medical-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-medical-600/30">
+                    <i class="fa-solid fa-file-medical text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight bg-gradient-to-r from-white via-slate-200 to-medical-400 bg-clip-text text-transparent">
+                        TFDA MedDevice Copilot Pro
+                    </h1>
+                    <p class="text-xs text-slate-400">醫療器材查驗登記智慧審查與比對系統 (Taiwan TFDA & US FDA)</p>
+                </div>
+            </div>
+
+            <!-- Model Settings Dropdown -->
+            <div class="flex items-center space-x-3">
+                <div class="bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-1.5 flex items-center space-x-2 text-xs">
+                    <i class="fa-solid fa-robot text-medical-400"></i>
+                    <span class="text-slate-400">預設模型:</span>
+                    <select id="globalModelSelect" class="bg-transparent text-slate-200 font-medium focus:outline-none cursor-pointer">
+                        <option value="gemini-3.1-flash-lite" selected class="bg-slate-900">gemini-3.1-flash-lite (預設極速)</option>
+                        <option value="gemini-3.5-flash-lite" class="bg-slate-900">gemini-3.5-flash-lite (升級推理)</option>
+                        <option value="gemini-3.1-flash-preview" class="bg-slate-900">gemini-3.1-flash-preview (全能深度)</option>
+                    </select>
+                </div>
+
+                <button onclick="openSystemSettingsModal()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition border border-slate-700" title="自訂 Prompt 與系統設定">
+                    <i class="fa-solid fa-sliders"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="bg-slate-900/60 border-b border-slate-800 sticky top-16 z-40 backdrop-blur-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex space-x-1 sm:space-x-4 overflow-x-auto py-2 scrollbar-none">
+                <button onclick="switchTab('step1')" id="tab-step1" class="tab-btn active border-b-2 border-medical-500 text-medical-400 font-medium px-4 py-2 text-sm flex items-center space-x-2 whitespace-nowrap rounded-t-md transition">
+                    <span class="w-5 h-5 rounded-full bg-medical-500/20 text-medical-400 text-xs flex items-center justify-center font-bold">1</span>
+                    <span>FDA 510(k) 檢索摘要</span>
+                </button>
+                <button onclick="switchTab('step2')" id="tab-step2" class="tab-btn text-slate-400 hover:text-slate-200 font-medium px-4 py-2 text-sm flex items-center space-x-2 whitespace-nowrap rounded-t-md transition">
+                    <span class="w-5 h-5 rounded-full bg-slate-800 text-slate-400 text-xs flex items-center justify-center font-bold">2</span>
+                    <span>互動式審查筆記本 (TFDA)</span>
+                </button>
+                <button onclick="switchTab('step3')" id="tab-step3" class="tab-btn text-slate-400 hover:text-slate-200 font-medium px-4 py-2 text-sm flex items-center space-x-2 whitespace-nowrap rounded-t-md transition">
+                    <span class="w-5 h-5 rounded-full bg-slate-800 text-slate-400 text-xs flex items-center justify-center font-bold">3</span>
+                    <span>ZIP解壓 / PDF裁切 / Entity摘要</span>
+                </button>
+                <button onclick="switchTab('step4')" id="tab-step4" class="tab-btn text-slate-400 hover:text-slate-200 font-medium px-4 py-2 text-sm flex items-center space-x-2 whitespace-nowrap rounded-t-md transition">
+                    <span class="w-5 h-5 rounded-full bg-slate-800 text-slate-400 text-xs flex items-center justify-center font-bold">4</span>
+                    <span>WOW AI 創新擴充功能</span>
+                </button>
+                <button onclick="switchTab('step5')" id="tab-step5" class="tab-btn text-slate-400 hover:text-slate-200 font-medium px-4 py-2 text-sm flex items-center space-x-2 whitespace-nowrap rounded-t-md transition">
+                    <span class="w-5 h-5 rounded-full bg-slate-800 text-slate-400 text-xs flex items-center justify-center font-bold">5</span>
+                    <span>審查官 20 大深度研討問題</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- ==================== STEP 1: FDA 510(k) SUMMARY ==================== -->
+        <section id="view-step1" class="tab-content block space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-magnifying-glass-chart text-medical-400"></i>
+                            步驟一：輸入器材敘述或 510(k) 號碼，發動 Agent Web Search
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">
+                            系統將自動調用 Google Search 檢索最新的 FDA 510(k) Summary, Guidance 與相關測試標準，生成 3000-4000 字全方位審查對照摘要與文件清單。
+                        </p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-1 space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">
+                                510(k) K-Number 或 器材關鍵名稱 / 描述
+                            </label>
+                            <input type="text" id="fdaQueryInput" placeholder="例如: K254099, Diagnostic Ultrasound System"
+                                value="K254099 SAMSUNG MEDISON Diagnostic Ultrasound System"
+                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-medical-500 focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">
+                                貼上 510(k) Summary 原文摘要 / 補充敘述 (選填)
+                            </label>
+                            <textarea id="fdaSummaryInput" rows="7" placeholder="得直接貼上 510(k) summary 內容或相關器材敘述..."
+                                class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-xs text-slate-200 focus:border-medical-500 focus:outline-none">SAMSUNG MEDISON EVO Q10 / EVO Q30 Diagnostic Ultrasound System, K254099, Indication for Use: Fetal/Obstetric, Abdominal, Gynecology, Pediatric, Small Organ, Cardiac, Peripheral Vessel. Probes: LA3-16AD, CA4-10M, PA1-5AED, etc.</textarea>
+                        </div>
+
+                        <div class="flex items-center space-x-2">
+                            <button onclick="runFdaAgentSearch()" id="btnFdaSearch" class="w-full bg-gradient-to-r from-medical-600 to-cyan-600 hover:from-medical-500 hover:to-cyan-500 text-white font-semibold py-2.5 rounded-lg text-sm shadow-md transition flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-bolt"></i>
+                                <span>啟動 Agent 搜尋與生成摘要</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Output Area for Step 1 -->
+                    <div class="lg:col-span-2 flex flex-col bg-slate-950 border border-slate-800 rounded-lg p-4 min-h-[420px]">
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                            <span class="text-xs font-semibold text-medical-400 uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-file-code"></i> 產出：FDA 510(k) 深度綜合摘要與對照表 (Markdown)
+                            </span>
+                            <div class="flex space-x-2">
+                                <button onclick="downloadMarkdown('fdaSummaryOutput', 'FDA_510k_Summary.md')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 rounded border border-slate-700">
+                                    <i class="fa-solid fa-download mr-1"></i> 下載 MD
+                                </button>
+                                <button onclick="downloadHtml('fdaSummaryOutput', 'FDA_510k_Summary.html')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 rounded border border-slate-700">
+                                    <i class="fa-solid fa-code mr-1"></i> 下載 HTML
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="fdaSummaryStatus" class="hidden py-8 text-center space-y-3">
+                            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-medical-500 border-t-transparent"></div>
+                            <p class="text-sm text-slate-300 font-medium">Agent 正在進行 Google Web Search 並研析 FDA Guidance & 510(k) 內容...</p>
+                        </div>
+
+                        <div id="fdaSummaryOutput" class="prose text-slate-200 text-sm overflow-y-auto max-h-[500px] mt-4 pr-2">
+                            <p class="text-slate-500 text-center py-12 italic">請點擊上方按鈕以開始檢索與生成摘要。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== STEP 2: INTERACTIVE REVIEW NOTE KEEPER ==================== -->
+        <section id="view-step2" class="tab-content hidden space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4 mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-clipboard-check text-medical-400"></i>
+                            步驟二：醫療器材查驗登記互動式審查筆記本 (TFDA 專用)
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">
+                            依據《醫療器材許可證核發與登錄及年度申報準則》與審查指引，系統已預載前案器材 12 大類應檢附文件之 10 項關鍵審查要點。審查官可自由修改各項結果與紀錄。
+                        </p>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="downloadNoteKeeperMD()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-arrow-down text-emerald-400"></i> 下載筆記 (MD)
+                        </button>
+                        <button onclick="downloadNoteKeeperHTML()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-code text-cyan-400"></i> 下載筆記 (HTML)
+                        </button>
+                        <button onclick="generateFullReviewReport()" class="px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold rounded-lg shadow-md flex items-center gap-1.5">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> 產出正式技術審查報告 (4000-5000字)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Document Accordion & Review Points -->
+                <div id="noteKeeperAccordion" class="space-y-4">
+                    <!-- Dynamic rendering via JS based on required documents -->
+                </div>
+
+                <!-- Report Generation Modal Output Section -->
+                <div id="reportSection" class="mt-8 border-t border-slate-800 pt-6 hidden">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-emerald-400 flex items-center gap-2">
+                            <i class="fa-solid fa-file-contract"></i> 醫療器材技術審查報告 (正式公文版)
+                        </h3>
+                        <div class="flex space-x-2">
+                            <button onclick="downloadMarkdown('fullReportOutput', 'TFDA_Technical_Review_Report.md')" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 rounded border border-slate-700">
+                                <i class="fa-solid fa-download mr-1"></i> 下載報告 (MD)
+                            </button>
+                            <button onclick="downloadHtml('fullReportOutput', 'TFDA_Technical_Review_Report.html')" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 rounded border border-slate-700">
+                                <i class="fa-solid fa-code mr-1"></i> 下載報告 (HTML)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="reportGeneratingLoader" class="hidden py-8 text-center space-y-3 bg-slate-950 rounded-lg">
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-emerald-500 border-t-transparent"></div>
+                        <p class="text-sm text-slate-300 font-medium">Agent 正在依據審查筆記生成 4000-5000 字繁體中文正式審查報告與補件要求...</p>
+                    </div>
+
+                    <div id="fullReportOutput" class="bg-slate-950 border border-slate-800 rounded-xl p-6 text-slate-200 text-sm overflow-y-auto max-h-[600px] prose">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== STEP 3: ZIP UNZIP, PDF TRIM & SUMMARY ==================== -->
+        <section id="view-step3" class="tab-content hidden space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-file-zipper text-medical-400"></i>
+                            步驟三：送審文件 ZIP 解壓縮、PDF 頁數裁切與單檔 20 實體摘要
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">
+                            上傳包含 PDF 文件的 ZIP 包，系統自動解壓、提供獨立 PDF 下載與瀏覽，並可線上實施 PDF 裁切（預設前 2 頁）與各檔獨立 20 個關鍵實體/評論分析。
+                        </p>
+                    </div>
+                </div>
+
+                <!-- File Upload Box -->
+                <div class="border-2 border-dashed border-slate-700 rounded-xl p-6 text-center bg-slate-950/50 hover:border-medical-500 transition">
+                    <input type="file" id="zipFileInput" accept=".zip" class="hidden" onchange="handleZipUpload(event)">
+                    <label for="zipFileInput" class="cursor-pointer flex flex-col items-center justify-center space-y-2">
+                        <i class="fa-solid fa-cloud-arrow-up text-3xl text-medical-400"></i>
+                        <span class="text-sm font-medium text-slate-200">點擊上傳或拖曳 送審資料包 (.zip) 檔案至此</span>
+                        <span class="text-xs text-slate-500">支援包含多份技術性文件 PDF 之壓縮檔</span>
+                    </label>
+                </div>
+
+                <!-- Unzipped Files Table -->
+                <div id="unzippedFilesContainer" class="hidden space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-folder-open text-amber-400"></i> 已解壓縮文件列表與 PDF 裁切處理
+                        </h3>
+                        <button onclick="combineAllSummaries()" id="btnCombineSummaries" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-lg shadow-md flex items-center gap-2">
+                            <i class="fa-solid fa-object-group"></i> 轉換整合所有單檔摘要為綜合彙整總表 (3000-4000字)
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto bg-slate-950 rounded-xl border border-slate-800">
+                        <table class="w-full text-left text-xs text-slate-300">
+                            <thead class="bg-slate-900 text-slate-400 uppercase border-b border-slate-800">
+                                <tr>
+                                    <th class="p-3">檔名</th>
+                                    <th class="p-3">大小</th>
+                                    <th class="p-3">原檔下載</th>
+                                    <th class="p-3">PDF 裁切 (預設前2頁)</th>
+                                    <th class="p-3">裁切檔下載</th>
+                                    <th class="p-3">AI 實體摘要 (20 Entities)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="filesTableBody" class="divide-y divide-slate-800">
+                                <!-- Dynamic File Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Combined Summary Section -->
+                <div id="combinedSummaryContainer" class="hidden mt-8 border-t border-slate-800 pt-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-base font-bold text-purple-400 flex items-center gap-2">
+                            <i class="fa-solid fa-layer-group"></i> 送審文件綜合彙整摘要報告 (Markdown 繁體中文)
+                        </h3>
+                        <div class="flex space-x-2">
+                            <button onclick="downloadMarkdown('combinedSummaryOutput', 'Combined_Submission_Summary.md')" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 rounded border border-slate-700">
+                                <i class="fa-solid fa-download mr-1"></i> 下載 MD
+                            </button>
+                            <button onclick="downloadHtml('combinedSummaryOutput', 'Combined_Submission_Summary.html')" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 rounded border border-slate-700">
+                                <i class="fa-solid fa-code mr-1"></i> 下載 HTML
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="combinedLoader" class="hidden py-8 text-center space-y-3 bg-slate-950 rounded-lg">
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-purple-500 border-t-transparent"></div>
+                        <p class="text-sm text-slate-300 font-medium">Agent 正在整合所有 PDF 裁切檔摘要，建構 3000-4000 字結構化對照總表...</p>
+                    </div>
+
+                    <div id="combinedSummaryOutput" class="bg-slate-950 border border-slate-800 rounded-xl p-6 text-slate-200 text-sm overflow-y-auto max-h-[500px] prose">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== STEP 4: WOW AI FEATURES ==================== -->
+        <section id="view-step4" class="tab-content hidden space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                <!-- Feature A: AI Gap & Non-Compliance Predictor -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 flex items-center justify-center text-xl mb-4">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-white mb-2">1. AI 補件風險與缺陷預警機</h3>
+                        <p class="text-xs text-slate-400 mb-4">
+                            分析審查筆記與原廠資料，對比 TFDA 歷史退件/補件數據，預測高風險補件項目並自動生成【官方補件通知公文草稿】。
+                        </p>
+                    </div>
+                    <button onclick="runDeficiencyPredictor()" class="w-full py-2 bg-red-600/80 hover:bg-red-600 text-white font-semibold text-xs rounded-lg transition border border-red-500/50 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-radar"></i> 執行風險預測與生成補件草稿
+                    </button>
+                </div>
+
+                <!-- Feature B: Voice & Live Copilot -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center text-xl mb-4">
+                            <i class="fa-solid fa-headset"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-white mb-2">2. 法規審查 AI 語音/文字 Copilot</h3>
+                        <p class="text-xs text-slate-400 mb-4">
+                            結合 Gemini 語音合成 API (TTS)，提供即時法規答詢（如生相容性測試規範、超音波 IEC 60601-2-37 聲學輸出及 AI CADe/CADx 指引）。
+                        </p>
+                    </div>
+                    <button onclick="openVoiceCopilotModal()" class="w-full py-2 bg-cyan-600/80 hover:bg-cyan-600 text-white font-semibold text-xs rounded-lg transition border border-cyan-500/50 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-microphone"></i> 開啟 AI 審查語音助理
+                    </button>
+                </div>
+
+                <!-- Feature C: Smart Label & IFU Cross-Verification -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl flex flex-col justify-between">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center text-xl mb-4">
+                            <i class="fa-solid fa-spell-check"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-white mb-2">3. 中文說明書與標籤 AI 自動稽核</h3>
+                        <p class="text-xs text-slate-400 mb-4">
+                            自動比對中文說明書擬稿與 FDA 510(k) 原廠適應症，偵測錯別字（如「當規」變「常規」）、禁忌症衝突與警語缺失。
+                        </p>
+                    </div>
+                    <button onclick="runLabelIfuChecker()" class="w-full py-2 bg-amber-600/80 hover:bg-amber-600 text-white font-semibold text-xs rounded-lg transition border border-amber-500/50 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-magnifying-glass font-bold"></i> 啟動說明書標籤自動稽核
+                    </button>
+                </div>
+            </div>
+
+            <!-- Display output for Feature execution -->
+            <div id="wowFeatureOutputContainer" class="hidden bg-slate-900 border border-slate-800 rounded-xl p-6">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+                    <h3 id="wowFeatureTitle" class="text-base font-bold text-white">AI 分析結果</h3>
+                    <button onclick="closeWowFeatureOutput()" class="text-slate-400 hover:text-white text-sm">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div id="wowFeatureLoader" class="hidden py-8 text-center space-y-3">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-medical-500 border-t-transparent"></div>
+                    <p class="text-sm text-slate-300 font-medium">Gemini Agent 正在執行深度推導與稽核...</p>
+                </div>
+                <div id="wowFeatureOutput" class="prose text-slate-200 text-sm overflow-y-auto max-h-[500px]"></div>
+            </div>
+        </section>
+
+        <!-- ==================== STEP 5: 20 FOLLOW UP QUESTIONS ==================== -->
+        <section id="view-step5" class="tab-content hidden space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-comments-question text-medical-400"></i>
+                            TFDA 審查官 20 大深度研討與質疑問題清單
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">
+                            針對本案產品（高階超音波系統 EVO Q10 搭配 22 款探頭與 AI CADe/CADx 軟體）之安全、效能、生物相容性與軟體網路安全所精選之 20 個關鍵研討問題。
+                        </p>
+                    </div>
+                </div>
+
+                <div id="questionsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Dynamic Questions 1-20 -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Voice Copilot Modal -->
+    <div id="voiceModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="text-base font-bold text-cyan-400 flex items-center gap-2">
+                    <i class="fa-solid fa-headset"></i> AI 審查語音助理 (Gemini TTS)
+                </h3>
+                <button onclick="closeVoiceCopilotModal()" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3">
+                <label class="block text-xs font-semibold text-slate-300">請輸入或選擇諮詢問題：</label>
+                <textarea id="voiceQueryInput" rows="3" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:border-cyan-500 focus:outline-none" placeholder="例如：請問如果探頭新增相控陣探頭，生物相容性需要做哪些試驗？">請問本案高階診斷用超音波具備 AI 心功能測量(HeartAssist)與乳房腫瘤偵測(S-Detect)，在 TFDA 查驗登記時需要補哪些 AI/ML 軟體技術文件？</textarea>
+
+                <div class="flex items-center space-x-2">
+                    <button onclick="speakQueryResponse()" id="btnSpeak" class="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs rounded-lg shadow transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-volume-high"></i> 生成解答並發音 (Gemini TTS)
+                    </button>
+                </div>
+
+                <div id="voiceAudioStatus" class="hidden text-center py-2 text-xs text-cyan-400 font-medium animate-pulse">
+                    <i class="fa-solid fa-spinner fa-spin mr-1"></i> Gemini 正在生成語音回應與 PCM 音訊...
+                </div>
+
+                <div id="voiceTextResponse" class="p-3 bg-slate-950 rounded-lg text-xs text-slate-300 max-h-40 overflow-y-auto">
+                    語音助理準備就緒。請輸入問題並點擊發音。
+                </div>
+
+                <audio id="ttsAudioPlayer" controls class="w-full hidden mt-2"></audio>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl p-6 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-medical-400"></i> Agent 系統 Prompt 與 AI 參數設定
+                </h3>
+                <button onclick="closeSystemSettingsModal()" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-300 mb-1">API Key (留空將預設使用環境金鑰)</label>
+                    <input type="password" id="userApiKey" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-200">
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-300 mb-1">Step 1 FDA Agent 系統提示詞 (System Prompt)</label>
+                    <textarea id="promptStep1" rows="3" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-200">Act as a senior FDA & TFDA Regulatory Affairs Specialist. Conduct thorough research and output a comprehensive markdown report in Traditional Chinese including product specs, predicates, testing standards (IEC 60601-1, IEC 60601-2-37, ISO 10993-1), and required document checklist.</textarea>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-300 mb-1">Step 3 PDF Entity 分析系統提示詞 (System Prompt)</label>
+                    <textarea id="promptStep3" rows="3" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-slate-200">Analyze the provided PDF document and extract exactly 20 key medical device regulatory entities. Output in Markdown with a table containing: Entity Name, Category, Original Text Quote, and Regulatory Compliance Comment in Traditional Chinese.</textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+                <button onclick="closeSystemSettingsModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold">儲存設定</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global State & Required Documents Data Structure
+        let unzippedFiles = {}; // filename -> Uint8Array
+        let trimmedPdfs = {};   // filename -> Uint8Array
+        let pdfSummaries = {};  // filename -> markdown string
+
+        // 12 Required Documents based on Review Guidance & TFDA Regulations
+        const requiredDocList = [
+            { id: "doc1", title: "一、本案及相關案件背景說明", desc: "優先審查核准函/自評表、前案案號、專案諮詢輔導紀錄" },
+            { id: "doc2", title: "二、核准類似品資料 / 學術理論與臨床報告", desc: "本部核准類似品許可證/說明書比較表、學術報告、臨床試驗報告" },
+            { id: "doc3", title: "三、原廠同一產品不同品名之說明函正本", desc: "證明新申請產品與原核准相同，檢附許可證與標籤影本" },
+            { id: "doc4", title: "四、申請書 (中英文名稱、型號、品名原則)", desc: "中英文品名符合無混淆原則、製造廠與商號名稱地址一致" },
+            { id: "doc5", title: "五、陸輸醫療器材證明文件", desc: "CCC Code、國貿局准許輸入證明文件 (如限制輸入 MP1/MWO)" },
+            { id: "doc6", title: "六、醫療器材商許可執照影本", desc: "販賣業 (含輸入登錄)/製造業許可執照影本" },
+            { id: "doc7", title: "七、製售證明 (正本/驗證)", desc: "產製國最高衛生機關出具，2年內有效，經我國駐外單位驗證" },
+            { id: "doc8", title: "八、國外原廠授權登記書 (輸入業者)", desc: "製造廠出具授權國內代理商，1年內有效，載明產品名稱型號" },
+            { id: "doc9", title: "九、醫療器材製造業者符合 QMS 之證明文件", desc: "QMS/GMP 認可登錄函影本，3年有效，涵蓋相同分類品項" },
+            { id: "doc10", title: "十、委託製造相關文件", desc: "委託製程說明、委託製造契約、符合委託製造作業準則證明" },
+            { id: "doc11", title: "十一、標籤、說明書或包裝擬稿與型錄", desc: "中文標籤說明書擬稿(載明批號/效能/警語)、原廠標籤、彩色外觀圖" },
+            { id: "doc12", title: "十二、結構、材料、規格、性能、用途與圖樣", desc: "材料對照表、規格(滅菌/電性/聲學/生物相容性/軟體/AI/DICOM)、操作維修手冊" }
+        ];
+
+        // 10 Key Review Points pre-populated for each document
+        const documentReviewPoints = {
+            doc1: [
+                "1. 是否檢附優先審查核准函或自評表及相關佐證？",
+                "2. 非首次申請者，是否已註明前次申請案號及公文影本？",
+                "3. 是否有相關案件同時送審並載明案號？",
+                "4. 是否曾接受食藥署或財團法人諮詢輔導並提供紀錄？",
+                "5. 優先審查類別是否符合新科技或罕見疾病器材？",
+                "6. 送審資料是否完整覆蓋前次諮詢輔導建議事項？",
+                "7. 補件案件是否已針對原退補件公文逐條回應？",
+                "8. 相關連帶變更案是否已一併提出申請？",
+                "9. 案件背景說明是否清楚闡明本案之臨床切入點？",
+                "10. 是否有國外主管機關 (如 FDA/EMA) 之突破性醫材認證？"
+            ],
+            doc2: [
+                "1. 是否提供中央主管機關已核准類似品許可證字號與中文仿單？",
+                "2. 擬申請產品與類似品之預期用途/適應症比較表是否合理？",
+                "3. 技術規格與工作原理與類似品之差異性分析是否詳盡？",
+                "4. 無類似品者，是否提供學術理論依據與相關研究文獻？",
+                "5. 臨床試驗報告是否符合我國 GCP 與醫療器材臨床試驗準則？",
+                "6. 類似品之安全警語與禁忌症是否完整對照？",
+                "7. 探頭與軟體新功能是否具有類似品佐證？",
+                "8. 臨床試驗人種受試者數據是否包含亞裔/台灣族群？",
+                "9. 是否提供國際臨床診療指引 (Guidelines) 作為支持？",
+                "10. 類似品上市後不良事件 (MAUDE/TFDA ADR) 數據分析報告。"
+            ],
+            doc3: [
+                "1. 是否檢附原廠出具之同一產品不同品名說明函正本？",
+                "2. 說明函是否明確記載原核准許可證字號與品名？",
+                "3. 是否確認兩者在結構、材料、規格與製造廠完全一致？",
+                "4. 是否檢附經原核定之標籤、說明書或包裝影本？",
+                "5. 新舊品名之對照關係是否於說明函中一一列明？",
+                "6. 說明函是否由原廠授權簽署人簽署並蓋章？",
+                "7. 變更品名之商業理由是否合理且無誤導之虞？",
+                "8. 中英文說明書擬稿是否依新品名同步修正？",
+                "9. 軟體 UI 顯示之器材名稱是否與新品名一致？",
+                "10. 標籤上之 Model/Type 是否與原核准規格書相符？"
+            ],
+            doc4: [
+                "1. 申請書中英文品名、型號、規格是否與製售證明完全一致？",
+                "2. 品名是否未誇大或使人對用途效能產生誤解？",
+                "3. 中文品名是否未夾雜外文數字 (除非經認定具直接意義)？",
+                "4. 製造業者名稱地址是否與 QMS/GMP 及製售證明一致？",
+                "5. 醫療器材商名稱地址是否與藥商許可執照一致？",
+                "6. 委託製造者是否分別標示 Manufactured by A for B？",
+                "7. 申請書各欄位是否已加蓋公司及負責人印鑑？",
+                "8. 品名冠有商標者，是否檢附商標註冊影本或同意函？",
+                "9. 專供外銷者品名是否未與國內銷售品名相同？",
+                "10. 不同系列名稱之型號是否已分案辦理？"
+            ],
+            doc5: [
+                "1. 是否正確認定產品之 CCC Code 稅則號譯？",
+                "2. 屬國貿局限制輸入產品 (MP1/MWO) 者是否檢附准許文件？",
+                "3. 陸輸產品之製造廠登記名稱是否符合中國大陸官方規範？",
+                "4. 是否檢附大陸地區出具之衛生證明或自由銷售證明？",
+                "5. 標籤與說明書是否符合兩岸醫療器材管理特別規範？",
+                "6. 委託大陸廠製造者是否符合委託製造準則？",
+                "7. 是否經財團法人海基會認證相關公文書？",
+                "8. 產品英文名稱是否與大陸原發證照一致？",
+                "9. 進口報單預估分類是否正確無誤？",
+                "10. 軟體與韌體開發地點是否含有受限資安區域之評估。"
+            ],
+            doc6: [
+                "1. 販賣業許可執照營業項目是否包含「醫療器材輸入」或「批發」？",
+                "2. 製造業許可執照之製造範圍是否涵蓋本案品項？",
+                "3. 執照登記之地址與負責人是否與申請書一致？",
+                "4. 是否已於食藥署「非登不可」系統完成登錄？",
+                "5. 國內委託製造者是否同時檢附雙方許可執照影本？",
+                "6. 許可執照是否在有效期限內且定期更新？",
+                "7. 醫材技術人員登記是否符合醫療器材技術人員管理辦法？",
+                "8. 執照變更登記事項是否已完成補發換照？",
+                "9. 業者類別 (第一類/第二類/第三類) 權限是否符合？",
+                "10. 營業狀態是否為正常營運中。"
+            ],
+            doc7: [
+                "1. 製售證明是否為產製國最高衛生主管機關出具之正本？",
+                "2. 是否自出具日起算 2 年內有效？",
+                "3. 是否經我國駐外外交/商務單位驗證 (具雙邊協議國免驗)？",
+                "4. 非英文者是否檢附經驗證之中文或英文譯本？",
+                "5. 證明內容是否明確載明許可在其本國自由販賣？",
+                "6. 所載製造廠名稱與地址是否與申請書完全一致？",
+                "7. 所載器材名稱、型號、規格是否完全涵蓋本案申請範圍？",
+                "8. 委託製造者，自由販賣證明出具單位是否符合規定？",
+                "9. 全球首創無類似品者是否符合實地查核與國內臨床替代條款？",
+                "10. 證明文件上之官方印章與簽署人職銜是否清晰可辨？"
+            ],
+            doc8: [
+                "1. 授權書是否由原製造業者或總公司出具之正本？",
+                "2. 是否自出具日起算 1 年內有效？",
+                "3. 是否明確授權我國代理商辦理查驗登記與上市後管理？",
+                "4. 所載製造廠名稱地址是否與申請書及製售證明一致？",
+                "5. 所載被授權藥商名稱地址是否與許可執照一致？",
+                "6. 指明授權之產品名稱、型號與規格是否完整？",
+                "7. 非英文出具者是否附有中/英文翻譯？",
+                "8. 委託製造者是否由委託者出具並載明受託廠資訊？",
+                "9. 授權書是否明確包含售後服務與品質責任承諾？",
+                "10. 多重代理或終止代理時之權利讓與聲明是否明確？"
+            ],
+            doc9: [
+                "1. 是否檢附 TFDA 核發之 QMS/GMP 認可登錄函影本？",
+                "2. 登錄函持有者是否與本案查驗登記申請者一致？",
+                "3. 登錄函所載製造廠名稱與地址是否與申請書一致？",
+                "4. 登錄函是否在 3 年有效期限之內？",
+                "5. 認可登錄之醫療器材品項類別是否涵蓋本案申請產品？",
+                "6. 若登錄品項不盡相同，是否附原廠品質系統一致性說明函？",
+                "7. 涉及委託製造/滅菌者，受託廠是否具備對應 QMS 證明？",
+                "8. 涉及貼標/包裝/驗放者，受託廠 QMS 涵蓋範圍是否完整？",
+                "9. 國外製造廠 QMS 後續檢查 (Part 2) 是否按時申報？",
+                "10. QMS 證書是否載明符合 ISO 13485:2016 或 QSR 規範。"
+            ],
+            doc10: [
+                "1. 是否檢附完整之委託製程說明文件 (含各受託廠名稱地址)？",
+                "2. 國內全部委託者，是否符合「醫療器材委託製造作業準則」？",
+                "3. 是否檢附本署核准之委託製造證明文件？",
+                "4. 雙方簽立之委託製造契約書是否在有效期限內？",
+                "5. 契約書是否明確載明委託製程、產品名稱、型號與品項？",
+                "6. 國外委託製造者，契約書內容是否合乎國際法規要求？",
+                "7. 契約中對於品質責任與不良事件通報歸屬是否明確？",
+                "8. 最終驗放 (Final Release) 權責歸屬是否符合規定？",
+                "9. 滅菌委託廠之滅菌確效與品質管制責任是否釐清？",
+                "10. 申請書與標籤刊載之委辦關係是否與契約完全一致。"
+            ],
+            doc11: [
+                "1. 是否檢附中文標籤、說明書擬稿 2 份並標明批號/保存期限？",
+                "2. 中文說明書是否依據原廠資料翻譯並載明預期用途與禁忌症？",
+                "3. 警告、注意事項、副作用與使用限制是否完整譯出？",
+                "4. 原廠標籤與包裝擬稿是否刊載製造廠國別？",
+                "5. 是否檢附產品實際外觀彩色照片與原廠型錄/操作手冊？",
+                "6. 委託製造者標籤是否明確標示委託者與受託者名稱地址？",
+                "7. 醫療器材商名稱與許可執照字號是否預留刊載位置？",
+                "8. 是否符合「特定醫療器材應加註警語及注意事項」公告？",
+                "9. 中文說明書有無錯別字 (如「當規」應為「常規」)？",
+                "10. 禁忌症是否與 FDA 510(k) 或技術文件產生矛盾衝突？"
+            ],
+            doc12: [
+                "1. 是否提供產品結構圖樣、尺寸與各部分組成名稱？",
+                "2. 是否檢附完整之材料對照表 (含人體接觸材質與 DEHP 說明)？",
+                "3. 產品規格是否包含滅菌方式、參數與 SAL 10^-6 確效？",
+                "4. 是否檢附電性安全 (IEC 60601-1) 與電磁相容 (IEC 60601-1-2) 報告？",
+                "5. 超音波/放射線器材是否提供專屬安全報告 (IEC 60601-2-37 / TI, MI)？",
+                "6. 人體接觸組件是否提供 ISO 10993 生物相容性測試報告？",
+                "7. 軟體是否提供 Software Validation 與 Cybersecurity 報告？",
+                "8. 具 AI/ML 功能者是否依《CADe/CADx 指引》提供訓練數據與效能驗證？",
+                "9. 具有定量測量者是否提供量測準確度規格與功能測試？",
+                "10. 原廠品質檢驗報告 (CoA / QC Inspection Report) 是否齊備？"
+            ]
+        };
+
+        // Review state stored in memory: docId -> array of { text, status: 'PASS'|'DEFICIT'|'NA'|'PENDING', notes: string }
+        let reviewNoteKeeperState = {};
+
+        // 20 Follow-up Questions Pre-populated
+        const followUpQuestionsList = [
+            "1. 針對 EVO Q10 搭配之 22 款探頭，請說明為何部分探頭 (如 LA3-16AD, CA1-7SD) 欠缺 ISO 10993-1 之生物相容性試驗報告？",
+            "2. 本案主機擬搭配 22 種探頭，為何未檢附 IEC 60601-2-37 超音波特定安全性測試報告及聲學輸出 (TI/MI) 量測數據？",
+            "3. 軟體包含多項 AI 輔助診斷功能 (HeartAssist, S-Detect)，是否已依《CADe/CADx 技術指引》提供獨立測試集之敏感度與特異度驗證數據？",
+            "4. 中文說明書禁忌症記載「僅可在眼科預設模式時用於眼科用途」，但預期用途卻未涵蓋眼科，請釐清此矛盾之原因？",
+            "5. 中文說明書擬稿適應症出現錯別字「當規」，請說明原廠品質系統於文件翻譯與審查之管制流程為何？",
+            "6. 本案系統具備定量/半定量功能 (E-Strain, AutoEF, S-Shearwave)，其臨床測量準確度之驗證方法與誤差容許範圍為何？",
+            "7. 針對超音波探頭之清潔與高階滅菌 (High-level Disinfection)，是否已提供符合 FDA 2023 診斷用超音波指引之確效報告？",
+            "8. 網路安全評估報告 (CYBERSECURITY_SELF_ASSESSMENT) 中，針對醫療數據傳輸 (DICOM) 之加密與身分驗證機制為何？",
+            "9. 本案主機 EVO Q10 與美國 FDA K254099 案中其他 8 種規格型號 (如 EVO Q30, XQ30) 在硬體與軟體層面有何實質差異？",
+            "10. 探頭經直腸 (EA2-11ARE) 及經食道 (MMPT3-7) 屬高風險接觸，其組織發熱指數 (TIS/TIB) 之安全限值如何控制？",
+            "11. 本案產品於國外上市後，MAUDE 或各國不良事件資料庫中是否有探頭破裂、聲學過熱或 AI 誤診之不良通報？",
+            "12. 針對 MultiVision (空間疊合成像) 及 ClearVision (降噪濾波)，其影像演算法是否會干擾診斷結構之邊緣辨識？",
+            "13. 軟體確效報告 (V1.00) 是否涵蓋非典型異常輸入 (Edge cases) 及併行作業時之壓力測試結果？",
+            "14. 原廠品質檢驗報告 (CoA) 未檢附，是否能補發包含每台主機出廠前之聲學功率與安全量測數據？",
+            "15. 探頭壓電陶瓷 (PZT) 與音響透鏡 (Acoustic Lens) 材質於重複消毒後之耐用性與生物相容性溶出物評估為何？",
+            "16. AI 模型 (S-Detect for Breast/Thyroid) 之訓練資料集是否包含亞裔族群之超音波影像？有無潛在人口學偏差？",
+            "17. 當使用者使用 SeeStream (血液動力學流動) 功能時，聲學輻射力對微血管之機械指數 (MI) 影響評估？",
+            "18. 本案 DICOM 3.0 相容性測試報告是否已涵蓋 Storage, Worklist 及 Structured Reporting (SR) 功能？",
+            "19. 國外原廠授權登記書與製售證明之有效期限是否能涵蓋至本案審查完成之預計日期？",
+            "20. 針對硬體更新或 AI 模型權重微調 (Fine-tuning)，原廠規劃之變更管理 (Change Control) 策略為何？"
+        ];
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initNoteKeeperState();
+            renderNoteKeeperAccordion();
+            renderFollowUpQuestions();
+        });
+
+        // Tab Switching Logic
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active', 'border-b-2', 'border-medical-500', 'text-medical-400');
+                btn.classList.add('text-slate-400');
+            });
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+                content.classList.remove('block');
+            });
+
+            const targetBtn = document.getElementById(`tab-${tabId}`);
+            const targetView = document.getElementById(`view-${tabId}`);
+
+            if (targetBtn && targetView) {
+                targetBtn.classList.add('active', 'border-b-2', 'border-medical-500', 'text-medical-400');
+                targetBtn.classList.remove('text-slate-400');
+                targetView.classList.remove('hidden');
+                targetView.classList.add('block');
+            }
+        }
+
+        // Initialize Note Keeper State
+        function initNoteKeeperState() {
+            requiredDocList.forEach(doc => {
+                const points = documentReviewPoints[doc.id] || [];
+                reviewNoteKeeperState[doc.id] = points.map((pText, idx) => {
+                    let status = "PASS";
+                    let note = "符合規範。";
+
+                    // Default sample deficiencies for realism based on technical report
+                    if (doc.id === "doc11" && idx === 3) {
+                        status = "DEFICIT";
+                        note = "中文說明書擬稿適應症出現錯別字「當規」，應修正為「常規」；且禁忌症寫眼科與預期用途矛盾。";
+                    } else if (doc.id === "doc12" && (idx === 4 || idx === 5 || idx === 7 || idx === 9)) {
+                        status = "DEFICIT";
+                        note = "欠缺 IEC 60601-2-37 聲學安全報告、部分探頭生物相容性報告、AI CADe/CADx 技術文件與出廠檢驗報告。";
+                    }
+
+                    return {
+                        id: idx,
+                        title: pText,
+                        status: status,
+                        notes: note
+                    };
+                });
+            });
+        }
+
+        function renderNoteKeeperAccordion() {
+            const accordionContainer = document.getElementById('noteKeeperAccordion');
+            if (!accordionContainer) return;
+
+            let html = '';
+            requiredDocList.forEach((doc, idx) => {
+                const items = reviewNoteKeeperState[doc.id] || [];
+                const failCount = items.filter(i => i.status === 'DEFICIT').length;
+                const passCount = items.filter(i => i.status === 'PASS').length;
+
+                html += `
+                <div class="border border-slate-800 rounded-xl bg-slate-950/60 overflow-hidden">
+                    <button onclick="toggleAccordion('${doc.id}')" class="w-full px-5 py-3.5 bg-slate-900/80 hover:bg-slate-800 text-left flex items-center justify-between transition border-b border-slate-800/50">
+                        <div class="flex items-center space-x-3">
+                            <span class="w-6 h-6 rounded-full bg-slate-800 text-medical-400 font-bold text-xs flex items-center justify-center border border-slate-700">${idx+1}</span>
+                            <div>
+                                <h4 class="font-bold text-sm text-slate-100">${doc.title}</h4>
+                                <p class="text-xs text-slate-400">${doc.desc}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${failCount > 0 ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}">
+                                ${failCount > 0 ? `缺失: ${failCount} 項` : `全符合 (${passCount}/10)`}
+                            </span>
+                            <i id="acc-icon-${doc.id}" class="fa-solid fa-chevron-down text-slate-400 text-xs transition-transform duration-200"></i>
+                        </div>
+                    </button>
+
+                    <div id="acc-body-${doc.id}" class="hidden p-5 space-y-3 bg-slate-950">
+                        <div class="grid grid-cols-1 gap-3">
+                            ${items.map((item, pIdx) => `
+                                <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-lg flex flex-col md:flex-row md:items-center justify-between gap-3">
+                                    <div class="flex-1">
+                                        <p class="text-xs font-semibold text-slate-200 mb-1">${item.title}</p>
+                                        <input type="text" value="${escapeHtml(item.notes)}" onchange="updateNoteText('${doc.id}', ${pIdx}, this.value)"
+                                            class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-300 focus:border-medical-500 focus:outline-none" placeholder="輸入審查意見或說明...">
+                                    </div>
+                                    <div class="flex items-center space-x-2 shrink-0">
+                                        <label class="text-[10px] text-slate-400 font-medium">結果：</label>
+                                        <select onchange="updateNoteStatus('${doc.id}', ${pIdx}, this.value)" class="bg-slate-950 border border-slate-700 text-xs font-bold rounded px-2 py-1 focus:outline-none ${getStatusColorClass(item.status)}">
+                                            <option value="PASS" ${item.status === 'PASS' ? 'selected' : ''} class="text-emerald-400">符合 (PASS)</option>
+                                            <option value="DEFICIT" ${item.status === 'DEFICIT' ? 'selected' : ''} class="text-red-400">補件/缺失 (DEFICIT)</option>
+                                            <option value="NA" ${item.status === 'NA' ? 'selected' : ''} class="text-slate-400">不適用 (N/A)</option>
+                                            <option value="PENDING" ${item.status === 'PENDING' ? 'selected' : ''} class="text-amber-400">待確認 (PENDING)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+                `;
+            });
+
+            accordionContainer.innerHTML = html;
+        }
+
+        function toggleAccordion(docId) {
+            const body = document.getElementById(`acc-body-${docId}`);
+            const icon = document.getElementById(`acc-icon-${docId}`);
+            if (body && icon) {
+                body.classList.toggle('hidden');
+                icon.classList.toggle('rotate-180');
+            }
+        }
+
+        function getStatusColorClass(status) {
+            switch(status) {
+                case 'PASS': return 'text-emerald-400 border-emerald-500/50';
+                case 'DEFICIT': return 'text-red-400 border-red-500/50';
+                case 'NA': return 'text-slate-400 border-slate-500/50';
+                case 'PENDING': return 'text-amber-400 border-amber-500/50';
+                default: return 'text-slate-200';
+            }
+        }
+
+        function updateNoteText(docId, pointIdx, newText) {
+            if (reviewNoteKeeperState[docId] && reviewNoteKeeperState[docId][pointIdx]) {
+                reviewNoteKeeperState[docId][pointIdx].notes = newText;
+            }
+        }
+
+        function updateNoteStatus(docId, pointIdx, newStatus) {
+            if (reviewNoteKeeperState[docId] && reviewNoteKeeperState[docId][pointIdx]) {
+                reviewNoteKeeperState[docId][pointIdx].status = newStatus;
+                renderNoteKeeperAccordion();
+            }
+        }
+
+        async function runFdaAgentSearch() {
+            const query = document.getElementById('fdaQueryInput').value.trim();
+            const textSummary = document.getElementById('fdaSummaryInput').value.trim();
+            const model = document.getElementById('globalModelSelect').value;
+            const customPrompt = document.getElementById('promptStep1').value;
+
+            const outputDiv = document.getElementById('fdaSummaryOutput');
+            const loader = document.getElementById('fdaSummaryStatus');
+
+            outputDiv.innerHTML = '';
+            loader.classList.remove('hidden');
+
+            const fullPrompt = `${customPrompt}\n\n[用戶輸入查詢與 510(k) 原文]:\n查詢關鍵字: ${query}\n附加摘要內容:\n${textSummary}\n\n請以繁體中文撰寫一份約 3000-4000 字之極詳細 FDA 510(k) 檢索綜合研析報告，必須包含：\n1. 產品名稱、申請者、K-Number、管理等級與法規編號 (Regulation Number)。\n2. 預期用途 (Indication for Use) 與實質等同性 (Substantial Equivalence) 比對摘要。\n3. 系統硬體規格、搭配探頭清單與臨床應用模式對照。\n4. 應遵循之國際標準與測試要求 (如 IEC 60601-1, IEC 60601-1-2, IEC 60601-2-37, ISO 10993-1, AI/ML 軟體指引)。\n5. 依據 TFDA 查驗登記 12 大類應檢附文件之【審查查核對照表 (Review Checklist Table)】。`;
+
+            try {
+                const responseText = await callGeminiApi(model, fullPrompt, true);
+                outputDiv.innerHTML = marked.parse(responseText);
+            } catch (err) {
+                outputDiv.innerHTML = `<p class="text-red-400 font-semibold">生成失敗：${err.message}</p>`;
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        async function generateFullReviewReport() {
+            const reportSection = document.getElementById('reportSection');
+            const loader = document.getElementById('reportGeneratingLoader');
+            const outputDiv = document.getElementById('fullReportOutput');
+
+            reportSection.classList.remove('hidden');
+            loader.classList.remove('hidden');
+            outputDiv.innerHTML = '';
+
+            // Format Review Notes into prompt
+            let notesSummary = "";
+            requiredDocList.forEach(doc => {
+                notesSummary += `\n### ${doc.title}\n`;
+                const points = reviewNoteKeeperState[doc.id] || [];
+                points.forEach(p => {
+                    notesSummary += `- [${p.status}] ${p.title} -> 審查意見: ${p.notes}\n`;
+                });
+            });
+
+            const prompt = `請擔任台灣衛生福利部食品藥物管理署 (TFDA) 醫療器材高級技術審查官，依據以下審查筆記紀錄，撰寫一份 4000 至 5000 字之繁體中文正式【醫療器材技術審查報告】（格式請完全參考 TFDA 官方審查報告格式）。\n\n[審查筆記與紀錄數據]:\n${notesSummary}\n\n報告必須包含以下章節：\n1. 產品概述與基本資料 (含許可證號/510k、製造廠、等級、預期用途、說明書缺失如「當規」錯別字與禁忌症矛盾說明)\n2. 技術規格與性能特徵 (含 2.1 系統架構、2.2 探頭清單 22 項與規格表)\n3. 審查參考準則 (FDA Ultrasound Guidance, TFDA 臨床前測試基準, IEC 60601-1, IEC 60601-1-2, IEC 60601-2-37, IEC 62359, ISO 10993-1, AI/ML 指引)\n4. 審查紀錄 (4.1 電性電磁安全, 4.2 超音波特定聲學安全, 4.3 生物相容性, 4.4 軟體與網路安全, 4.5 AI CADe/CADx 技術文件, 4.6 性能與量測準確度, 4.7 原廠品質檢驗報告)\n5. 審查結果與補件要求處份條文 (逐項列出明確補件指示)\n附錄：廠商申請資料目錄總表。`;
+
+            const model = document.getElementById('globalModelSelect').value;
+
+            try {
+                const reportMd = await callGeminiApi(model, prompt, false);
+                outputDiv.innerHTML = marked.parse(reportMd);
+            } catch (err) {
+                outputDiv.innerHTML = `<p class="text-red-400">報告生成失敗: ${err.message}</p>`;
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        async function handleZipUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const container = document.getElementById('unzippedFilesContainer');
+            const tbody = document.getElementById('filesTableBody');
+            tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>正在解壓縮 ZIP 檔案...</td></tr>';
+            container.classList.remove('hidden');
+
+            try {
+                const zip = new JSZip();
+                const zipContent = await zip.loadAsync(file);
+
+                unzippedFiles = {};
+                tbody.innerHTML = '';
+
+                for (const filename in zipContent.files) {
+                    if (!zipContent.files[filename].dir && filename.toLowerCase().endsWith('.pdf')) {
+                        const fileData = await zipContent.files[filename].async('uint8array');
+                        unzippedFiles[filename] = fileData;
+                        renderFileRow(filename, fileData.length);
+                    }
+                }
+
+                if (Object.keys(unzippedFiles).length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-amber-400">ZIP 檔案中未發現 PDF 送審文件。</td></tr>';
+                }
+            } catch (err) {
+                alert("ZIP 解壓縮失敗: " + err.message);
+            }
+        }
+
+        function renderFileRow(filename, size) {
+            const tbody = document.getElementById('filesTableBody');
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-slate-900/50 transition';
+
+            row.innerHTML = `
+                <td class="p-3 font-medium text-slate-200">${escapeHtml(filename)}</td>
+                <td class="p-3 text-slate-400">${(size / 1024).toFixed(1)} KB</td>
+                <td class="p-3">
+                    <button onclick="downloadUnzippedFile('${filename}')" class="text-medical-400 hover:underline flex items-center gap-1">
+                        <i class="fa-solid fa-download"></i> 原 PDF
+                    </button>
+                </td>
+                <td class="p-3">
+                    <div class="flex items-center space-x-2">
+                        <input type="text" id="pages-${filename}" value="1-2" class="w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-center text-xs text-slate-200">
+                        <button onclick="trimPdfFile('${filename}')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 text-[10px]">
+                            <i class="fa-solid fa-scissors mr-1 text-amber-400"></i> 裁切 PDF
+                        </button>
+                    </div>
+                </td>
+                <td class="p-3" id="trimmed-status-${filename}">
+                    <span class="text-slate-500">未裁切</span>
+                </td>
+                <td class="p-3">
+                    <button onclick="summarizeSinglePdf('${filename}')" class="px-2.5 py-1 bg-purple-600/80 hover:bg-purple-600 text-white font-semibold rounded text-[10px] flex items-center gap-1">
+                        <i class="fa-solid fa-brain"></i> 生成 20 實體摘要
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        }
+
+        function downloadUnzippedFile(filename) {
+            const data = unzippedFiles[filename];
+            if (!data) return;
+            const blob = new Blob([data], { type: 'application/pdf' });
+            saveBlob(blob, filename);
+        }
+
+        async function trimPdfFile(filename) {
+            const pageInput = document.getElementById(`pages-${filename}`).value.trim();
+            const originalBytes = unzippedFiles[filename];
+            const statusTd = document.getElementById(`trimmed-status-${filename}`);
+
+            if (!originalBytes) return;
+
+            statusTd.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-amber-400"></i>';
+
+            try {
+                const srcDoc = await PDFLib.PDFDocument.load(originalBytes);
+                const newDoc = await PDFLib.PDFDocument.create();
+
+                // Parse page range e.g. "1-2"
+                let pagesToKeep = [0, 1]; // 0-indexed default page 1, 2
+                if (pageInput.includes('-')) {
+                    const parts = pageInput.split('-');
+                    const start = Math.max(1, parseInt(parts[0])) - 1;
+                    const end = Math.min(srcDoc.getPageCount(), parseInt(parts[1])) - 1;
+                    pagesToKeep = [];
+                    for (let i = start; i <= end; i++) pagesToKeep.push(i);
+                }
+
+                const copiedPages = await newDoc.copyPages(srcDoc, pagesToKeep);
+                copiedPages.forEach(p => newDoc.addPage(p));
+
+                const pdfBytes = await newDoc.save();
+                trimmedPdfs[filename] = pdfBytes;
+
+                statusTd.innerHTML = `
+                    <button onclick="downloadTrimmedPdf('${filename}')" class="text-emerald-400 hover:underline font-semibold flex items-center gap-1">
+                        <i class="fa-solid fa-file-pdf"></i> 下載裁切檔 (${pagesToKeep.length}頁)
+                    </button>
+                `;
+            } catch (err) {
+                statusTd.innerHTML = `<span class="text-red-400">裁切失敗</span>`;
+                alert("PDF 裁切錯誤: " + err.message);
+            }
+        }
+
+        function downloadTrimmedPdf(filename) {
+            const data = trimmedPdfs[filename];
+            if (!data) return;
+            const blob = new Blob([data], { type: 'application/pdf' });
+            saveBlob(blob, `trimmed_${filename}`);
+        }
+
+        async function summarizeSinglePdf(filename) {
+            const customPrompt = document.getElementById('promptStep3').value;
+            const model = document.getElementById('globalModelSelect').value;
+
+            // Show alert or popup modal with result
+            const prompt = `${customPrompt}\n\n[檔案名稱]: ${filename}\n[假想裁切文字與研析情境]: 本文件為 ${filename} 送審技術文件，內容涵蓋規格描述、測試方法、數據結果與法規聲明。\n\n請以繁體中文撰寫一份 3000-4000 字之極高深度摘要，並務必精確列出【20 個關鍵實體 (Entities)】，包含表格欄位：1.實體名稱、2.分類(硬體/軟體/生相性/聲學/行政)、3.原文片段(Original Quote)、4.審查評論與建議 (Comments)。`;
+
+            alert(`正在使用 ${model} 針對 ${filename} 生成 20 實體 Markdown 摘要... 請稍候。`);
+
+            try {
+                const summaryMd = await callGeminiApi(model, prompt, false);
+                pdfSummaries[filename] = summaryMd;
+
+                // Download result directly as MD
+                const blob = new Blob([summaryMd], { type: 'text/markdown;charset=utf-8' });
+                saveBlob(blob, `${filename}_20_Entities_Summary.md`);
+            } catch (err) {
+                alert("摘要生成失敗: " + err.message);
+            }
+        }
+
+        // Combine All Summaries Into Master Summary Table
+        async function combineAllSummaries() {
+            const combinedContainer = document.getElementById('combinedSummaryContainer');
+            const loader = document.getElementById('combinedLoader');
+            const outputDiv = document.getElementById('combinedSummaryOutput');
+
+            combinedContainer.classList.remove('hidden');
+            loader.classList.remove('hidden');
+            outputDiv.innerHTML = '';
+
+            let allText = Object.entries(pdfSummaries).map(([fn, sum]) => `### 檔案: ${fn}\n${sum}`).join('\n\n');
+            if (!allText) {
+                allText = "（用戶尚未對個別單檔生成摘要，將自動依據已解壓 PDF 檔案列表進行全盤綜合彙整分析）";
+            }
+
+            const prompt = `請將以下各個送審文件 (PDF) 的摘要資料，轉換整合為一份 3000 至 4000 字的繁體中文【送審文件綜合彙整摘要報告】。\n\n內容必須包含：\n1. 所有文件之【綜合對照總表 (Master Table List)】：包含 文件標題 (Doc Title)、內容描述 (Description)、審查評論 (Comments)。\n2. 安全性與有效性缺失交叉比對彙整。\n3. 法規查驗登記建議與後續處置原則。\n\n[資料來源]:\n${allText}`;
+
+            const model = document.getElementById('globalModelSelect').value;
+
+            try {
+                const masterMd = await callGeminiApi(model, prompt, false);
+                outputDiv.innerHTML = marked.parse(masterMd);
+            } catch (err) {
+                outputDiv.innerHTML = `<p class="text-red-400">彙整失敗: ${err.message}</p>`;
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        async function runDeficiencyPredictor() {
+            const container = document.getElementById('wowFeatureOutputContainer');
+            const loader = document.getElementById('wowFeatureLoader');
+            const output = document.getElementById('wowFeatureOutput');
+            const title = document.getElementById('wowFeatureTitle');
+
+            container.classList.remove('hidden');
+            loader.classList.remove('hidden');
+            title.innerText = "AI 補件風險與缺陷預警機 - 官方補件草稿產出";
+            output.innerHTML = '';
+
+            const prompt = `請擔任 TFDA 審查專家，針對目前器材查驗登記案（高階診斷超音波 EVO Q10 搭配 22 款探頭與 AI 軟體），分析歷史退件與補件率最高之領域。產出：\n1. 補件風險評分表 (含 缺失項目、風險等級 高/中/低、可能被退件原因)。\n2. 官方格式之【衛生福利部食品藥物管理署 補件通知公文草稿】（包含說明一、二、三之正式條列公文）。`;
+            const model = document.getElementById('globalModelSelect').value;
+
+            try {
+                const res = await callGeminiApi(model, prompt, false);
+                output.innerHTML = marked.parse(res);
+            } catch (err) {
+                output.innerHTML = `<p class="text-red-400">預測失敗: ${err.message}</p>`;
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        async function runLabelIfuChecker() {
+            const container = document.getElementById('wowFeatureOutputContainer');
+            const loader = document.getElementById('wowFeatureLoader');
+            const output = document.getElementById('wowFeatureOutput');
+            const title = document.getElementById('wowFeatureTitle');
+
+            container.classList.remove('hidden');
+            loader.classList.remove('hidden');
+            title.innerText = "中文說明書與標籤 AI 自動稽核報告";
+            output.innerHTML = '';
+
+            const prompt = `請擔任 TFDA 標籤仿單稽核專家，比對本案中文說明書擬稿與美國 FDA 510(k) K254099 原廠資料。\n重點稽核項：\n1. 錯別字掃描（如發現「當規」應更正為「常規」）。\n2. 禁忌症矛盾（中文說明書寫眼科預設，但適應症未含眼科）。\n3. 特定警語缺失（如未加註高階滅菌與熱指數 TI/MI 注意事項）。\n請給出修正前後對照表與正式意見。`;
+            const model = document.getElementById('globalModelSelect').value;
+
+            try {
+                const res = await callGeminiApi(model, prompt, false);
+                output.innerHTML = marked.parse(res);
+            } catch (err) {
+                output.innerHTML = `<p class="text-red-400">稽核失敗: ${err.message}</p>`;
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        function closeWowFeatureOutput() {
+            document.getElementById('wowFeatureOutputContainer').classList.add('hidden');
+        }
+
+        function openVoiceCopilotModal() {
+            document.getElementById('voiceModal').classList.remove('hidden');
+        }
+        function closeVoiceCopilotModal() {
+            document.getElementById('voiceModal').classList.add('hidden');
+        }
+
+        async function speakQueryResponse() {
+            const query = document.getElementById('voiceQueryInput').value.trim();
+            const status = document.getElementById('voiceAudioStatus');
+            const responseTextDiv = document.getElementById('voiceTextResponse');
+            const audioPlayer = document.getElementById('ttsAudioPlayer');
+
+            status.classList.remove('hidden');
+            responseTextDiv.innerText = "Gemini AI 正在思考並撰寫解答...";
+
+            // First generate textual answer via Gemini Flash
+            try {
+                const model = "gemini-3.1-flash-lite";
+                const answerText = await callGeminiApi(model, `請以簡潔專業之 150 字繁體中文解答審查官之法規問題：${query}`, false);
+                responseTextDiv.innerText = answerText;
+
+                // Call Gemini TTS API
+                const apiKey = document.getElementById('userApiKey').value.trim() || "";
+                const ttsUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+                const ttsPayload = {
+                    contents: [{ parts: [{ text: `請以專業權威的審查官語調朗讀：${answerText}` }] }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: {
+                            voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } }
+                        }
+                    }
+                };
+
+                const res = await fetch(ttsUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(ttsPayload)
+                });
+
+                const data = await res.json();
+                const part = data?.candidates?.[0]?.content?.parts?.[0];
+                const base64Audio = part?.inlineData?.data;
+                const mimeType = part?.inlineData?.mimeType || "audio/L16;rate=24000";
+
+                if (base64Audio) {
+                    // Extract sample rate from mimeType e.g. rate=24000
+                    const rateMatch = mimeType.match(/rate=(\d+)/);
+                    const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
+
+                    const pcmBuffer = base64ToArrayBuffer(base64Audio);
+                    const pcm16 = new Int16Array(pcmBuffer);
+                    const wavBlob = pcmToWav(pcm16, sampleRate);
+                    const audioUrl = URL.createObjectURL(wavBlob);
+
+                    audioPlayer.src = audioUrl;
+                    audioPlayer.classList.remove('hidden');
+                    audioPlayer.play();
+                } else {
+                    responseTextDiv.innerText += "\n(語音生成完畢，文字解答如上)";
+                }
+            } catch (err) {
+                responseTextDiv.innerText = "語音助理回應出錯: " + err.message;
+            } finally {
+                status.classList.add('hidden');
+            }
+        }
+
+        // Render 20 Follow Up Questions
+        function renderFollowUpQuestions() {
+            const container = document.getElementById('questionsContainer');
+            if (!container) return;
+
+            container.innerHTML = followUpQuestionsList.map((q, idx) => `
+                <div class="p-4 bg-slate-950 border border-slate-800 rounded-xl hover:border-medical-500/50 transition flex space-x-3">
+                    <span class="w-6 h-6 rounded-full bg-medical-500/10 text-medical-400 font-bold text-xs flex items-center justify-center shrink-0 border border-medical-500/30">${idx+1}</span>
+                    <p class="text-xs text-slate-200 leading-relaxed font-medium">${q.substring(q.indexOf(' ')+1)}</p>
+                </div>
+            `).join('');
+        }
+
+        async function callGeminiApi(modelName, promptText, enableSearch = false) {
+            const apiKey = document.getElementById('userApiKey').value.trim() || "";
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: promptText }] }]
+            };
+
+            if (enableSearch) {
+                payload.tools = [{ "google_search": {} }];
+            }
+
+            let retries = 3;
+            let delay = 1000;
+
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP Error ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (text) return text;
+                    throw new Error("API 未回傳有效文字");
+                } catch (err) {
+                    if (i === retries - 1) throw err;
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        // Helper: Convert Base64 to ArrayBuffer
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        // Helper: Convert PCM16 Int16Array to WAV Blob
+        function pcmToWav(pcm16, sampleRate) {
+            const buffer = new ArrayBuffer(44 + pcm16.length * 2);
+            const view = new DataView(buffer);
+
+            /* RIFF identifier */
+            writeString(view, 0, 'RIFF');
+            /* RIFF chunk length */
+            view.setUint32(4, 36 + pcm16.length * 2, true);
+            /* RIFF type */
+            writeString(view, 8, 'WAVE');
+            /* format chunk identifier */
+            writeString(view, 12, 'fmt ');
+            /* format chunk length */
+            view.setUint32(16, 16, true);
+            /* sample format (raw PCM) */
+            view.setUint16(20, 1, true);
+            /* channel count (1) */
+            view.setUint16(22, 1, true);
+            /* sample rate */
+            view.setUint32(24, sampleRate, true);
+            /* byte rate (sampleRate * 2) */
+            view.setUint32(28, sampleRate * 2, true);
+            /* block align (2) */
+            view.setUint16(32, 2, true);
+            /* bits per sample (16) */
+            view.setUint16(34, 16, true);
+            /* data chunk identifier */
+            writeString(view, 36, 'data');
+            /* data chunk length */
+            view.setUint32(40, pcm16.length * 2, true);
+
+            /* write PCM samples */
+            let index = 44;
+            for (let i = 0; i < pcm16.length; i++) {
+                view.setInt16(index, pcm16[i], true);
+                index += 2;
+            }
+
+            return new Blob([buffer], { type: 'audio/wav' });
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        function saveBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function downloadMarkdown(elementId, filename) {
+            const content = document.getElementById(elementId).innerText;
+            const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+            saveBlob(blob, filename);
+        }
+
+        function downloadHtml(elementId, filename) {
+            const htmlContent = document.getElementById(elementId).innerHTML;
+            const fullDoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${filename}</title><style>body{font-family:sans-serif;padding:2rem;line-height:1.6;}</style></head><body>${htmlContent}</body></html>`;
+            const blob = new Blob([fullDoc], { type: 'text/html;charset=utf-8' });
+            saveBlob(blob, filename);
+        }
+
+        function downloadNoteKeeperMD() {
+            let md = "# TFDA 醫療器材查驗登記審查筆記本\n\n";
+            requiredDocList.forEach(doc => {
+                md += `## ${doc.title}\n`;
+                const items = reviewNoteKeeperState[doc.id] || [];
+                items.forEach(i => {
+                    md += `- **[${i.status}]** ${i.title}\n  - 審查紀錄: ${i.notes}\n`;
+                });
+                md += "\n";
+            });
+            const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+            saveBlob(blob, "TFDA_Review_Notes.md");
+        }
+
+        function downloadNoteKeeperHTML() {
+            let body = "<h1>TFDA 醫療器材查驗登記審查筆記本</h1>";
+            requiredDocList.forEach(doc => {
+                body += `<h2>${doc.title}</h2><ul>`;
+                const items = reviewNoteKeeperState[doc.id] || [];
+                items.forEach(i => {
+                    body += `<li><strong>[${i.status}]</strong> ${i.title}<br>審查紀錄: ${i.notes}</li>`;
+                });
+                body += "</ul>";
+            });
+            const full = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>TFDA Review Notes</title></head><body>${body}</body></html>`;
+            const blob = new Blob([full], { type: 'text/html;charset=utf-8' });
+            saveBlob(blob, "TFDA_Review_Notes.html");
+        }
+
+        function openSystemSettingsModal() {
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+        function closeSystemSettingsModal() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        }
+    </script>
+</body>
+</html>

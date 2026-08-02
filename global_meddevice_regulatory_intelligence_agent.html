@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全球醫療器材追溯監管 AI 智網 (Global MedDevice Regulatory Intelligence Agent)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                            800: '#0c4a6e',
+                            900: '#0f172a',
+                            950: '#020617'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Marked.js for Markdown Rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', 'Inter', sans-serif;
+            background-color: #020617;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.8);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-panel-glow {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.08);
+        }
+        [contenteditable="true"]:focus {
+            outline: 2px solid #38bdf8;
+            border-radius: 4px;
+            background-color: rgba(56, 189, 248, 0.12);
+        }
+        .markdown-body h1 { font-size: 1.75rem; font-weight: 700; color: #38bdf8; margin-top: 1.5rem; margin-bottom: 0.75rem; border-bottom: 1px solid #334155; padding-bottom: 0.5rem; }
+        .markdown-body h2 { font-size: 1.35rem; font-weight: 600; color: #f1f5f9; margin-top: 1.25rem; margin-bottom: 0.5rem; }
+        .markdown-body h3 { font-size: 1.1rem; font-weight: 600; color: #38bdf8; margin-top: 1rem; margin-bottom: 0.5rem; }
+        .markdown-body p { margin-bottom: 0.75rem; line-height: 1.7; color: #cbd5e1; font-size: 0.9rem; }
+        .markdown-body ul, .markdown-body ol { margin-left: 1.5rem; margin-bottom: 0.75rem; color: #cbd5e1; font-size: 0.9rem; }
+        .markdown-body li { margin-bottom: 0.25rem; }
+        .markdown-body table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.85rem; }
+        .markdown-body th, .markdown-body td { border: 1px solid #334155; padding: 0.5rem 0.75rem; text-align: left; }
+        .markdown-body th { background-color: rgba(30, 41, 59, 0.8); color: #38bdf8; }
+        .markdown-body blockquote { border-left: 4px solid #38bdf8; padding-left: 1rem; color: #94a3b8; font-style: italic; margin: 1rem 0; }
+    </style>
+</head>
+<body class="text-slate-100 min-h-screen flex flex-col custom-scrollbar antialiased">
+
+    <!-- HEADER NAVBAR -->
+    <header class="sticky top-0 z-50 glass-panel border-b border-slate-800 px-4 lg:px-8 py-3 flex flex-wrap justify-between items-center shadow-2xl">
+        <div class="flex items-center space-x-3">
+            <div class="p-2.5 bg-gradient-to-br from-sky-500/20 to-blue-600/30 text-sky-400 rounded-xl border border-sky-500/30 shadow-inner">
+                <i class="fa-solid fa-brain-circuit text-2xl animate-pulse"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg lg:text-xl text-white tracking-wide flex items-center gap-2">
+                    全球醫療器材追溯監管 AI 智網
+                    <span class="text-xs font-normal px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/40">10 國 Agent 聯網引擎</span>
+                </h1>
+                <p class="text-xs text-slate-400 flex items-center gap-2">
+                    <span>US FDA · EU MDR · UK MHRA · AU TGA · SG HSA · JP PMDA · CN NMPA · KR MFDS · CH Swissmedic · TW TFDA</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Action Controls -->
+        <div class="flex items-center space-x-2.5 mt-2 sm:mt-0">
+            <div id="status-badge" class="hidden text-xs text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                <i class="fa-solid fa-circle-check"></i> <span id="status-text">已載入最新研析數據</span>
+            </div>
+            
+            <button onclick="openAgentModal()" class="text-xs font-medium bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white px-3.5 py-2 rounded-lg transition-all flex items-center gap-1.5 shadow-lg shadow-sky-600/25">
+                <i class="fa-solid fa-robot"></i> 執行 Agentic AI 研析
+            </button>
+            <button onclick="exportMarkdown()" class="text-xs font-medium bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/30 px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-file-arrow-down"></i> 下載 Markdown
+            </button>
+            <button onclick="exportHTML()" class="text-xs font-medium bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 px-3 py-2 rounded-lg transition-all flex items-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-code"></i> 下載完整網頁 (.html)
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN TABS NAV -->
+    <div class="bg-slate-900/90 border-b border-slate-800/80 px-4 lg:px-8 py-2 sticky top-[65px] z-40 backdrop-blur-md">
+        <nav class="flex space-x-2 overflow-x-auto custom-scrollbar text-xs font-medium" id="main-tabs">
+            <button onclick="switchTab('analytics')" id="tab-analytics" class="tab-btn active px-3.5 py-2 rounded-lg transition-all text-sky-400 bg-sky-950/70 border border-sky-800/60 flex items-center gap-2 whitespace-nowrap">
+                <i class="fa-solid fa-chart-pie"></i> 視覺化數據圖表 (5 Analytics)
+            </button>
+            <button onclick="switchTab('matrix')" id="tab-matrix" class="tab-btn px-3.5 py-2 rounded-lg transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800 flex items-center gap-2 whitespace-nowrap">
+                <i class="fa-solid fa-table-cells"></i> 10 國監管對照矩陣
+            </button>
+            <button onclick="switchTab('report')" id="tab-report" class="tab-btn px-3.5 py-2 rounded-lg transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800 flex items-center gap-2 whitespace-nowrap">
+                <i class="fa-solid fa-book-open"></i> 完整法規研析報告 (3500+字)
+            </button>
+            <button onclick="switchTab('qa')" id="tab-qa" class="tab-btn px-3.5 py-2 rounded-lg transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800 flex items-center gap-2 whitespace-nowrap">
+                <i class="fa-solid fa-circle-question"></i> 20 大高階問答集 (Q&A)
+            </button>
+            <button onclick="switchTab('wow1')" id="tab-wow1" class="tab-btn px-3.5 py-2 rounded-lg transition-all text-amber-400 hover:bg-amber-950/40 border border-amber-500/30 flex items-center gap-2 whitespace-nowrap">
+                <i class="fa-solid fa-shield-virus"></i> [WOW 1] AI 合規風險試算引擎
+            </button>
+            <button onclick="switchTab('wow2')" id="tab-wow2" class="tab-btn px-3.5 py-2 rounded-lg transition-all text-purple-400 hover:bg-purple-950/40 border border-purple-500/30 flex items-center gap-2 whitespace-nowrap">
+                <i class="fa-solid fa-barcode"></i> [WOW 2] UDI 標籤與條碼 Mockup 產生器
+            </button>
+            <button onclick="switchTab('wow3')" id="tab-wow3" class="tab-btn px-3.5 py-2 rounded-lg transition-all text-emerald-400 hover:bg-emerald-950/40 border border-emerald-500/30 flex items-center gap-2 whitespace-nowrap">
+                <i class="fa-solid fa-volume-high"></i> [WOW 3] Gemini 語音簡報原聲生成
+            </button>
+        </nav>
+    </div>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="flex-1 p-4 lg:p-8 max-w-7xl mx-auto w-full space-y-8">
+
+        <!-- SECTION 1: VISUAL ANALYTICS -->
+        <section id="sec-analytics" class="tab-content block space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-3">
+                <div>
+                    <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-sky-400"></i> 全球 10 國監管指標數據視覺化分析
+                    </h2>
+                    <p class="text-xs text-slate-400">跨國維度比較：直達患者執法深度、文件保存年限、緊急警戒通報時限、UDI 屬性採認及經濟營運者責任權重</p>
+                </div>
+                <div class="flex gap-2 text-xs">
+                    <span class="bg-sky-950/80 text-sky-300 px-3 py-1.5 rounded-lg border border-sky-800/60 flex items-center gap-1.5">
+                        <i class="fa-solid fa-rotate"></i> 數據即時連動
+                    </span>
+                </div>
+            </div>
+
+            <!-- Charts 5 Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Chart 1: Enforcement & Patient-Level Radar -->
+                <div class="glass-panel p-4.5 rounded-2xl border border-slate-800 flex flex-col justify-between hover:border-sky-500/40 transition-all">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                            <i class="fa-solid fa-radar text-sky-400"></i> 1. 直達患者追溯強度 (Radar)
+                        </h3>
+                        <i class="fa-solid fa-info-circle text-xs text-slate-500" title="評估各國在患者層級追溯及資料庫強制申報的執法力度"></i>
+                    </div>
+                    <div class="relative h-64 w-full">
+                        <canvas id="chartRadarDepth"></canvas>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-2">韓國 (MFDS) 與美國 (FDA) 在高風險植入物之患者端直達追溯評分最高。</p>
+                </div>
+
+                <!-- Chart 2: Retention Requirements Bar -->
+                <div class="glass-panel p-4.5 rounded-2xl border border-slate-800 flex flex-col justify-between hover:border-emerald-500/40 transition-all">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                            <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> 2. 追溯日誌法定保存年限 (Bar)
+                        </h3>
+                        <i class="fa-solid fa-info-circle text-xs text-slate-500" title="一般醫療器材 vs 植入性醫療器材之法定保存期限"></i>
+                    </div>
+                    <div class="relative h-64 w-full">
+                        <canvas id="chartRetention"></canvas>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-2">歐盟 MDR、瑞士與新加坡針對植入物強制要求最少 15 年保存期。</p>
+                </div>
+
+                <!-- Chart 3: Emergency Recall Timelines -->
+                <div class="glass-panel p-4.5 rounded-2xl border border-slate-800 flex flex-col justify-between hover:border-amber-500/40 transition-all">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                            <i class="fa-solid fa-triangle-exclamation text-amber-400"></i> 3. 重大警戒初次通報時限 (Hours)
+                        </h3>
+                        <i class="fa-solid fa-info-circle text-xs text-slate-500" title="極嚴重公共衛生危害之初次通報門檻（以小時為單位，越短越嚴）"></i>
+                    </div>
+                    <div class="relative h-64 w-full">
+                        <canvas id="chartTimelines"></canvas>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-2">新加坡 HSA (24h) 與澳洲 TGA (48h) 對於重大風險回應時限最嚴苛。</p>
+                </div>
+
+                <!-- Chart 4: UDI Attribute Adoption Stacked -->
+                <div class="glass-panel p-4.5 rounded-2xl border border-slate-800 flex flex-col justify-between md:col-span-2 hover:border-purple-500/40 transition-all">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                            <i class="fa-solid fa-barcode text-purple-400"></i> 4. UDI 關鍵組件與規範採認狀況 (Stacked Bar)
+                        </h3>
+                        <i class="fa-solid fa-info-circle text-xs text-slate-500" title="包含 Basic UDI-DI, Direct Marking (DPM), Implant Card 與患者層級登錄採認"></i>
+                    </div>
+                    <div class="relative h-64 w-full">
+                        <canvas id="chartUdiAdopt"></canvas>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-2">Basic UDI-DI 僅歐盟與瑞士採用；Direct Marking (DPM) 在美、歐、韓全面強制。</p>
+                </div>
+
+                <!-- Chart 5: Operator Burden Doughnut -->
+                <div class="glass-panel p-4.5 rounded-2xl border border-slate-800 flex flex-col justify-between hover:border-rose-500/40 transition-all">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                            <i class="fa-solid fa-sitemap text-rose-400"></i> 5. 供應鏈角色追溯義務配比 (Doughnut)
+                        </h3>
+                        <i class="fa-solid fa-info-circle text-xs text-slate-500" title="比較製造商、在地代表、進口商、經銷商與醫院的追溯法定義務"></i>
+                    </div>
+                    <div class="relative h-64 w-full flex items-center justify-center">
+                        <canvas id="chartOperatorBurden"></canvas>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-2">製造商與在地代表（AR/Sponsor/CH-REP）承擔超過 60% 的追溯責任。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: GLOBAL COMPARISON MASTER MATRIX -->
+        <section id="sec-matrix" class="tab-content hidden space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-3">
+                <div>
+                    <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-table text-sky-400"></i> 全球 10 國醫療器材追溯與 UDI 監管綜合對照矩陣
+                    </h2>
+                    <p class="text-xs text-slate-400">可在下方表格中點擊任意單元格進行實時內容編輯，修改將自動同步至匯出文件與 Markdown 報告</p>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="matrixSearch" onkeyup="filterMatrixTable()" placeholder="搜尋國家、法規或資料庫..." class="bg-slate-900 border border-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded-lg focus:ring-2 focus:ring-sky-500 outline-none w-56">
+                    <button onclick="resetMatrixTable()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700">重置表格</button>
+                </div>
+            </div>
+
+            <!-- Editable Responsive Table -->
+            <div class="glass-panel rounded-2xl border border-slate-800 overflow-x-auto custom-scrollbar">
+                <table class="w-full text-left border-collapse text-xs text-slate-300" id="masterTable">
+                    <thead>
+                        <tr class="bg-slate-900/90 border-b border-slate-800 text-slate-200 font-semibold uppercase tracking-wider">
+                            <th class="p-3.5 w-32">國家 / 監管機構</th>
+                            <th class="p-3.5 w-44">核心法規依據</th>
+                            <th class="p-3.5 w-36">中央資料庫</th>
+                            <th class="p-3.5 w-60">UDI 特色與編碼要求</th>
+                            <th class="p-3.5 w-64">供應鏈追溯與特定品項要求</th>
+                            <th class="p-3.5 w-48">參考指引文件</th>
+                            <th class="p-3.5 w-60">專家綜合解析 (Comments)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60" id="matrixTableBody">
+                        <!-- Table Rows Injected via JS -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="text-right text-xs text-slate-500 flex justify-between items-center px-1">
+                <span><i class="fa-solid fa-info-circle text-sky-400"></i> 提示：雙擊單元格可實時修改內容</span>
+                <span><i class="fa-solid fa-pen"></i> 即時編輯模式啟用中</span>
+            </div>
+        </section>
+
+        <!-- SECTION 3: COMPREHENSIVE MARKDOWN REPORT -->
+        <section id="sec-report" class="tab-content hidden space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-3">
+                <div>
+                    <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-file-contract text-sky-400"></i> 全球 10 國醫療器材追溯監管 3,500+ 字深度研析報告
+                    </h2>
+                    <p class="text-xs text-slate-400">整合 FDA、EU MDR、UK MHRA、TGA、HSA、PMDA、NMPA、MFDS、Swissmedic 及 TFDA 獨立法規專章</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="toggleMarkdownEditMode()" id="btn-toggle-edit" class="text-xs bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/30 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                        <i class="fa-solid fa-pen-to-square"></i> 切換編輯原始碼
+                    </button>
+                    <button onclick="copyReportMarkdown()" class="text-xs bg-sky-600/30 hover:bg-sky-600/50 text-sky-300 border border-sky-500/30 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                        <i class="fa-solid fa-copy"></i> 複製全文 Markdown
+                    </button>
+                </div>
+            </div>
+
+            <!-- Report View / Edit Toggle -->
+            <div id="report-rendered-view" class="glass-panel p-6 rounded-2xl border border-slate-800 markdown-body text-slate-200 overflow-y-auto max-h-[750px] custom-scrollbar">
+                <!-- Rendered Markdown goes here -->
+            </div>
+            
+            <div id="report-editor-view" class="hidden glass-panel p-4 rounded-2xl border border-slate-800">
+                <textarea id="reportMarkdownTextarea" oninput="updateReportFromTextarea()" class="w-full h-[650px] bg-slate-950/90 text-slate-200 p-4 font-mono text-xs rounded-xl border border-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 custom-scrollbar leading-relaxed" spellcheck="false"></textarea>
+            </div>
+        </section>
+
+        <!-- SECTION 4: 20 STRATEGIC Q&A -->
+        <section id="sec-qa" class="tab-content hidden space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-3">
+                <div>
+                    <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-circle-question text-sky-400"></i> 20 大全球醫療器材合規高階疑難解答庫
+                    </h2>
+                    <p class="text-xs text-slate-400">涵蓋數據對接、在地代表責任、高風險追溯、3PL 物流、SaMD 資安及稽核處分等 6 大維度</p>
+                </div>
+                <div class="w-full sm:w-72">
+                    <input type="text" id="qaSearch" onkeyup="filterQA()" placeholder="搜尋關鍵字 (如: Basic UDI, 3PL, FSCA)..." class="w-full bg-slate-900 border border-slate-700 text-xs text-slate-200 px-3 py-2 rounded-xl focus:ring-2 focus:ring-sky-500 outline-none">
+                </div>
+            </div>
+
+            <div class="space-y-3" id="qaContainer">
+                <!-- QA Items Injected via JS -->
+            </div>
+        </section>
+
+        <!-- WOW FEATURE 1: COMPLIANCE RISK SCORECARD & CHECKLIST -->
+        <section id="sec-wow1" class="tab-content hidden space-y-6">
+            <div class="border-b border-slate-800 pb-3">
+                <h2 class="text-xl font-bold text-amber-400 flex items-center gap-2">
+                    <i class="fa-solid fa-shield-virus"></i> [WOW 1] AI 全球醫療器材合規風險試算與文件 Checkle Engine
+                </h2>
+                <p class="text-xs text-slate-400">輸入特定器材的風險等級與特性，AI 將即時試算各目標國家的合規風險分級、臨界通報時限與必備文件清單</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Input Panel -->
+                <div class="glass-panel p-5 rounded-2xl border border-amber-500/30 space-y-4">
+                    <h3 class="text-sm font-semibold text-amber-300 flex items-center gap-2 border-b border-slate-800 pb-2">
+                        <i class="fa-solid fa-sliders"></i> 器材規格參數設定
+                    </h3>
+                    
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1">器材風險等級 (Device Risk Class):</label>
+                        <select id="risk-class" class="w-full bg-slate-900 border border-slate-700 text-xs text-slate-200 p-2.5 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none">
+                            <option value="Class III">Class III / Class D (高風險植入物/生命維持)</option>
+                            <option value="Class IIb">Class IIb / Class C (中高風險器材)</option>
+                            <option value="Class IIa">Class IIa / Class B (中風險器材)</option>
+                            <option value="Class I">Class I / Class A (低風險器材)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1">器材特殊屬性 (Special Features):</label>
+                        <div class="space-y-2 text-xs text-slate-300 pt-1">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="feat-implant" checked class="rounded border-slate-700 text-amber-500 focus:ring-amber-500">
+                                <span>長期植入性 (Implantable > 1 year)</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="feat-samd" class="rounded border-slate-700 text-amber-500 focus:ring-amber-500">
+                                <span>獨立軟體 / 聯網 SaMD (Software / Wireless)</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="feat-reusable" class="rounded border-slate-700 text-amber-500 focus:ring-amber-500">
+                                <span>重複使用需滅菌 (Reusable Sterilized Instrument)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1">目標上市市場 (Target Markets):</label>
+                        <div class="grid grid-cols-2 gap-1.5 text-xs text-slate-300">
+                            <label class="flex items-center gap-1.5"><input type="checkbox" class="target-mkt" value="FDA" checked> US FDA</label>
+                            <label class="flex items-center gap-1.5"><input type="checkbox" class="target-mkt" value="EU" checked> EU MDR</label>
+                            <label class="flex items-center gap-1.5"><input type="checkbox" class="target-mkt" value="TGA" checked> AU TGA</label>
+                            <label class="flex items-center gap-1.5"><input type="checkbox" class="target-mkt" value="HSA" checked> SG HSA</label>
+                            <label class="flex items-center gap-1.5"><input type="checkbox" class="target-mkt" value="MFDS" checked> KR MFDS</label>
+                            <label class="flex items-center gap-1.5"><input type="checkbox" class="target-mkt" value="TFDA" checked> TW TFDA</label>
+                        </div>
+                    </div>
+
+                    <button onclick="calculateComplianceRisk()" class="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-semibold text-xs py-2.5 rounded-xl transition-all shadow-lg shadow-amber-600/20 flex justify-center items-center gap-2">
+                        <i class="fa-solid fa-calculator"></i> 即時計算合規風險與檢查表
+                    </button>
+                </div>
+
+                <!-- Scorecard Output -->
+                <div class="glass-panel p-5 rounded-2xl border border-slate-800 lg:col-span-2 space-y-4" id="risk-result-panel">
+                    <!-- Dynamic Result Injected via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- WOW FEATURE 2: UDI BARCODE & LABEL MOCKUP GENERATOR -->
+        <section id="sec-wow2" class="tab-content hidden space-y-6">
+            <div class="border-b border-slate-800 pb-3">
+                <h2 class="text-xl font-bold text-purple-400 flex items-center gap-2">
+                    <i class="fa-solid fa-barcode"></i> [WOW 2] 國際 UDI 標籤與 GS1 DataMatrix Mockup Engine
+                </h2>
+                <p class="text-xs text-slate-400">可線上調校 UDI-DI / UDI-PI 參數，即時產生符合 ISO 15223-1 標準之多國合規實體標籤預覽與 2D 條碼結構</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Label Inputs -->
+                <div class="glass-panel p-5 rounded-2xl border border-purple-500/30 space-y-3 text-xs">
+                    <h3 class="text-sm font-semibold text-purple-300 border-b border-slate-800 pb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-keyboard"></i> UDI 條碼與標籤參數設定
+                    </h3>
+
+                    <div>
+                        <label class="block text-slate-400 mb-1">製造商名稱 (Manufacturer):</label>
+                        <input type="text" id="lbl-mfr" value="MedTech Global Solutions Ltd." class="w-full bg-slate-900 border border-slate-700 text-slate-200 p-2 rounded-lg focus:ring-1 focus:ring-purple-500 outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-slate-400 mb-1">產品名稱 (Device Trade Name):</label>
+                        <input type="text" id="lbl-name" value="CardioPass Stent System II" class="w-full bg-slate-900 border border-slate-700 text-slate-200 p-2 rounded-lg focus:ring-1 focus:ring-purple-500 outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-400 mb-1">GS1 UDI-DI (GTIN-14):</label>
+                            <input type="text" id="lbl-di" value="00840123456789" class="w-full bg-slate-900 border border-slate-700 text-slate-200 p-2 rounded-lg font-mono outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">批號 Lot Number (10):</label>
+                            <input type="text" id="lbl-lot" value="LOT20260802" class="w-full bg-slate-900 border border-slate-700 text-slate-200 p-2 rounded-lg font-mono outline-none">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-400 mb-1">單機序號 Serial (21):</label>
+                            <input type="text" id="lbl-sn" value="SN99882211" class="w-full bg-slate-900 border border-slate-700 text-slate-200 p-2 rounded-lg font-mono outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">失效日期 Exp Date (17):</label>
+                            <input type="date" id="lbl-exp" value="2031-08-31" class="w-full bg-slate-900 border border-slate-700 text-slate-200 p-2 rounded-lg font-mono outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-slate-400 mb-1">多國授權代表圖示 (Regulatory Symbols):</label>
+                        <div class="flex flex-wrap gap-2 pt-1 text-slate-300">
+                            <label class="flex items-center gap-1"><input type="checkbox" id="sym-eu" checked> EC REP</label>
+                            <label class="flex items-center gap-1"><input type="checkbox" id="sym-ch" checked> CH REP</label>
+                            <label class="flex items-center gap-1"><input type="checkbox" id="sym-sterile" checked> STERILE EO</label>
+                            <label class="flex items-center gap-1"><input type="checkbox" id="sym-rx" checked> Rx Only</label>
+                        </div>
+                    </div>
+
+                    <button onclick="updateUdiLabelMockup()" class="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white font-semibold text-xs py-2.5 rounded-xl transition-all shadow-lg shadow-purple-600/20">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> 重新產生 UDI 標籤與 DataMatrix
+                    </button>
+                </div>
+
+                <!-- Label Preview -->
+                <div class="glass-panel p-5 rounded-2xl border border-slate-800 flex flex-col justify-between" id="label-preview-container">
+                    <!-- Dynamic Label Injected via JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- WOW FEATURE 3: GEMINI TTS LIVE VOICE BRIEFING -->
+        <section id="sec-wow3" class="tab-content hidden space-y-6">
+            <div class="border-b border-slate-800 pb-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 class="text-xl font-bold text-emerald-400 flex items-center gap-2">
+                        <i class="fa-solid fa-volume-high"></i> [WOW 3] Gemini 2.5 Flash Native Voice 語音簡報生成器
+                    </h2>
+                    <p class="text-xs text-slate-400">利用 Gemini 原生 TTS (`gemini-2.5-flash-preview-tts`)，將跨國監管重點轉換為自然流暢的口語簡報聲浪</p>
+                </div>
+            </div>
+
+            <div class="glass-panel p-6 rounded-2xl border border-emerald-500/30 space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1">簡報語音人聲 (Voice Character):</label>
+                        <select id="tts-voice" class="w-full bg-slate-900 border border-slate-700 text-xs text-slate-200 p-2.5 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <option value="Kore">Kore (堅定專業 - Firm)</option>
+                            <option value="Zephyr">Zephyr (明亮俐落 - Bright)</option>
+                            <option value="Puck">Puck (活潑流利 - Upbeat)</option>
+                            <option value="Fenrir">Fenrir (權威清晰 - Excitable)</option>
+                            <option value="Aoede">Aoede (輕鬆優雅 - Breezy)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1">簡報摘要語言 (Language):</label>
+                        <select id="tts-lang" class="w-full bg-slate-900 border border-slate-700 text-xs text-slate-200 p-2.5 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <option value="zh-TW">繁體中文 (Traditional Chinese Brief)</option>
+                            <option value="en-US">English (Global Executive Brief)</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-end">
+                        <button onclick="generateTtsSpeech()" id="btn-tts-generate" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs py-2.5 rounded-xl transition-all shadow-lg shadow-emerald-600/20 flex justify-center items-center gap-2">
+                            <i class="fa-solid fa-waveform"></i> 生成專屬語音簡報 (.wav)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Text Script Container -->
+                <div class="space-y-2">
+                    <label class="block text-xs font-semibold text-slate-300">簡報口播文稿 (Speech Script Preview):</label>
+                    <textarea id="tts-script" class="w-full h-36 bg-slate-950/80 text-slate-300 p-3.5 text-xs font-sans rounded-xl border border-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 leading-relaxed custom-scrollbar">您好，這是全球七大監管機構醫療器材追溯體系的核心簡報。在美國FDA、歐盟MDR、韓國MFDS與台灣TFDA的監管架構下，唯一醫療器材識別碼UDI與供應鏈無斷點紀錄已成強制門檻。特別是在高風險植入物領域，歐盟與瑞士要求醫院留存15年追溯日誌，韓國則要求交易發生後三天內向IMDIS申報並直達患者。建議企業建立統一的15年文件保存機制，並確保ERP系統具備二小時極速調閱召回紀錄的能力。</textarea>
+                </div>
+
+                <!-- Audio Player Container -->
+                <div id="tts-audio-player-zone" class="hidden p-4 bg-slate-900/90 rounded-xl border border-emerald-500/40 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-3 bg-emerald-500/20 text-emerald-400 rounded-full animate-bounce">
+                            <i class="fa-solid fa-circle-play text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold text-slate-200">Gemini 原生 PCM16 語音合成完成</p>
+                            <p class="text-[10px] text-slate-400">已自動轉換為標準 WAV 容器高音質音訊</p>
+                        </div>
+                    </div>
+                    <audio id="tts-audio-element" controls class="w-full sm:w-80 h-10"></audio>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-900/80 border-t border-slate-800/80 py-6 px-4 text-center text-xs text-slate-500 mt-auto">
+        <p>全球醫療器材追溯監管 AI 智網 (Global MedDevice Regulatory Intelligence Agent)</p>
+        <p class="mt-1 text-slate-600">支援 Gemini 3.1 Agent 實時聯網研析 · Markdown / Standalone HTML 完整導出</p>
+    </footer>
+
+    <!-- AGENT CONFIGURATION MODAL -->
+    <div id="agentModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="glass-panel-glow w-full max-w-2xl rounded-2xl p-6 border border-sky-500/40 space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-robot text-sky-400"></i> 配置 Agentic AI 研析參數 (Gemini Grounding)
+                </h3>
+                <button onclick="closeAgentModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-300 mb-1">Gemini AI 模型選擇 (Model):</label>
+                    <select id="agent-model" class="w-full bg-slate-900 border border-slate-700 text-slate-200 p-2.5 rounded-xl focus:ring-2 focus:ring-sky-500 outline-none">
+                        <option value="gemini-3-flash-preview" selected>gemini-3-flash-preview (預設，具備 Google Search 實時連網)</option>
+                        <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (高速度精簡版)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-300 mb-1">選擇納入研析的國家/地區 (Select Jurisdictions):</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="country-chk" value="FDA" checked> US FDA (美國)</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="country-chk" value="EU" checked> EU MDR (歐盟)</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="country-chk" value="MHRA" checked> UK MHRA (英國)</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="country-chk" value="TGA" checked> AU TGA (澳洲)</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="country-chk" value="HSA" checked> SG HSA (新加坡)</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="country-chk" value="PMDA" checked> JP PMDA (日本)</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="country-chk" value="NMPA" checked> CN NMPA (中國)</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="country-chk" value="MFDS" checked> KR MFDS (韓國)</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="country-chk" value="Swissmedic" checked> CH Swissmedic (瑞士)</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="country-chk" value="TFDA" checked> TW TFDA (台灣)</label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-300 mb-1">特定醫療器材/法規研究主題 (Custom Regulatory Prompt):</label>
+                    <textarea id="agent-query" class="w-full h-24 bg-slate-900 border border-slate-700 text-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-sky-500 outline-none leading-relaxed" placeholder="例如：針對 AI 獨立軟體 (SaMD) 與三級植入式支架之 UDI 標籤、DPM 與 15 年追溯日誌規範...">請針對全球醫療器材追溯與 UDI 監管體系（包含 UDI-DI/PI 標籤、中央資料庫、供應鏈進銷存日誌、植入卡與 20 大疑難問題）進行完整研析並更新報告與對照矩陣。</textarea>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-300 mb-1">系統 Prompt 範本 (System Instruction Override):</label>
+                    <textarea id="agent-system-prompt" class="w-full h-20 bg-slate-900 border border-slate-700 text-slate-400 p-2.5 font-mono text-[11px] rounded-xl outline-none" readonly>Act as a world-class global medical device regulatory affairs (RA) expert. Generate a comprehensive, 3500+ word report in Traditional Chinese (繁體中文) with an embedded markdown matrix summary table and 20 detailed Q&As based on Google Search grounded real-time regulatory information.</textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2">
+                <button onclick="closeAgentModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs">取消</button>
+                <button onclick="runAgenticGeneration()" id="btn-run-agent" class="px-5 py-2 bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-semibold rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-sky-600/30">
+                    <i class="fa-solid fa-paper-plane"></i> 啟動 Agent 搜尋與生成
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // DEFAULT RICH SAMPLE DATA STRUCTURES
+        let matrixData = [
+            { country: "美國 FDA", regulation: "21 CFR Part 830 / Part 821", database: "GUDID", udi: "• UDI-DI + UDI-PI<br>• 重複使用器械強制 Direct Marking (DPM)", traceability: "21 CFR Part 821 指定高風險植入物與維生設備，強制追溯至終端患者", references: "21 CFR 830, 821<br>FDA UDI Guidance", comments: "發展最早且最成熟體系。GUDID 為各國標準參考，Part 821 追蹤指令具法律強行力。" },
+            { country: "歐盟 EU MDR", regulation: "EU MDR (2017/745) / IVDR", database: "EUDAMED", udi: "• Basic UDI-DI（主存儲碼，用於 DoC/證書，不上標籤）<br>• UDI-DI + UDI-PI", traceability: "• 經濟營運者保持 10/15 年紀錄<br>• 醫院強制留存 Class III 植入物 UDI<br>• 隨附患者植入卡 (Implant Card)", references: "EU MDR Art. 27, Annex VI<br>EUDAMED Specs", comments: "獨創 Basic UDI-DI。強調全供應鏈連坐責任與醫院端留存義務。" },
+            { country: "英國 MHRA", regulation: "UK Medical Devices Regulations 2002", database: "MHRA Register", udi: "• 採認 GS1 / HIBCC 格式<br>• 與 GUDID/EUDAMED 結構高度對齊", traceability: "• UK Responsible Person (UKRP) 承擔法律責任<br>• 保持 10/15 年供應鏈追溯日誌", references: "UK MDR 2002<br>MHRA UDI Guidance", comments: "脫歐後過渡期獨立監管。採認 CE 標誌過渡條款，UKRP 承擔在地法律責任。" },
+            { country: "澳洲 TGA", regulation: "Therapeutic Goods Regulations 2002", database: "AusUDID", udi: "• UDI-DI + UDI-PI<br>• 強制與 ARTG 登記號碼綁定", traceability: "• 贊助商 (Sponsor) 承擔數據完整性與 AusUDID 維護<br>• 批發商須保持批號等級分銷日誌", references: "Therapeutic Goods Act 1989<br>TGA UDI Framework", comments: "高度對齊 FDA/MDR。在地 Sponsor 承擔法律責任，數據須雙向連結 ARTG。" },
+            { country: "新加坡 HSA", regulation: "Health Products Regulations 2010", database: "MEDICS", udi: "• UDI-DI + UDI-PI<br>• 遵循 GN-23 標籤規範", traceability: "• 經銷商須符合 SS 620 (GDPMDS) 或 ISO 13485<br>• SAR 專案進口於 30 天內提交分銷聲明<br>• SaMD 實施資安追溯矩陣", references: "HSA GN-23, GN-33<br>GN-15 (GDPMDS)", comments: "靈活且嚴謹。對 SAR 專案進口及獨立軟體 (SaMD) 資安矩陣有極高要求。" },
+            { country: "日本 PMDA", regulation: "《醫藥品醫療機器等法》(PMD Act)", database: "JMDN / PMDA", udi: "• 採行 GS1-128 / GS1 DataMatrix<br>• 條碼涵蓋 JAN / GS1 Code", traceability: "• 高高度管理醫療機器強制留存患者紀錄<br>• 批發經銷商須建立即時追溯履歷", references: "PMD Act Article 63-2<br>MHLW Notification", comments: "全面整合 GS1 標準於條碼，特別對高度管理醫療機器（Class III/IV）要求醫院端登記。" },
+            { country: "中國 NMPA", regulation: "《醫療器械唯一標識系統規則》", database: "NMPA UDI 資料庫", udi: "• 採用 發證機構條碼 (GS1, CMMHS 等)<br>• 包含 最小銷售單元標記", traceability: "• 醫療器械註冊人/備案人承擔數據上傳責任<br>• 經營企業與醫療機構須記錄 UDI 入庫出庫", references: "NMPA 2019年第72號公告<br>醫療器械監督管理條例", comments: "分批次強制實施。第一、二、三批目錄覆蓋數千個品項，資料庫與醫保碼雙向對接。" },
+            { country: "韓國 MFDS", regulation: "《醫療機器法》及相關告示", database: "IMDIS", udi: "• UDI-DI + UDI-PI<br>• 重複使用器材須 Direct Marking", traceability: "• 追跡管理對象 (52品項)：強制追溯至患者姓名/生日/植入日<br>• 每月/3天內向 IMDIS 上傳交易歷史", references: "《醫療機器法》第 31-2 條<br>施規第 50 條", comments: "監管強度極高。對 52 項指定器材要求極速申報 (3天內) 並直達患者；每月申報為強制義務。" },
+            { country: "瑞士 Swissmedic", regulation: "MedDO (SR 812.213) / IvDO", database: "swissdamed", udi: "• UDI-DI + UDI-PI<br>• 結構與歐盟 EUDAMED 對齊", traceability: "• 非瑞士製造商強制指定 CH-REP<br>• 瑞士進口商須於包裝/隨附文件標註資訊<br>• 醫院留存特定紀錄 15 年", references: "Swiss MedDO Art. 46-55<br>Swissmedic Guidance", comments: "脫歐自建系統。雖對齊 MDR，但 CH-REP 與進口商標籤為強制門檻；安全事件時過渡期立即撤銷。" },
+            { country: "台灣 TFDA", regulation: "《醫療器材管理法》第 19、32 條", database: "UDI 標示單一資料庫", udi: "• UDI-DI + UDI-PI<br>• 納入 QSD/QMS 品質體系追溯", traceability: "• 經銷商與醫療機構依據《醫療器材來源流向計畫》保持雙向紀錄<br>• 特定高風險植入物須線上申報流向", references: "《醫療器材管理法》<br>TFDA UDI 專區指引", comments: "分階段強制實施 (Class III 至 I)。強調源頭製造商/進口商至醫療機構之流向申報，與 QSD/GMP 高度結合。" }
+        ];
+
+        let qaData = [
+            { q: "1. 全球 UDI 數據重複使用性：GUDID / EUDAMED 數據是否能直接轉存至 AusUDID 或 TFDA？", a: "無法 100% 直轉。雖然 UDI-DI 與 UDI-PI 結構相同，但各國中央資料庫包含在地行政連結欄位。例如：澳洲 AusUDID 強制要求綁定 ARTG 登記號碼；台灣 TFDA 須填寫 QSD/QMS 登錄字號；新加坡 MEDICS 須連結 SMDR 號碼；歐盟則多出 Basic UDI-DI。轉換時需人工或透過系統進行欄位映射補件。" },
+            { q: "2. Basic UDI-DI 的跨國採認：Basic UDI-DI 在非歐盟國家是否適用？", a: "Basic UDI-DI 為歐盟（EU MDR/IVDR）及瑞士（MedDO/IvDO）獨有之概念，用於連結技術文件、DoC 及 CE 證書，不上實體標籤。美 (FDA)、澳 (TGA)、新 (HSA)、韓 (MFDS)、台 (TFDA) 等國完全採行以 UDI-DI（單一包裝規格）作為資料庫檢索與登記之主鍵，不採用 Basic UDI-DI。" },
+            { q: "3. 多國語言標籤與 UDI 條碼排列：如何設計多國通用標籤而不干擾 UDI 掃描？", a: "合規實務：將 UDI AIDC（GS1 DataMatrix 或一維條碼）獨立置於標籤固定區域，並保留足夠的空白區（Quiet Zone）；多國代表資訊（如 EU AR, CH-REP, 台灣藥商）採用 ISO 15223-1 標準圖示（Symbol）搭配文字集中排列於側邊，確保條碼掃描不被干擾。" },
+            { q: "4. UDI 發證機構（GS1 / HIBCC 等）跨國一致性要求為何？", a: "主管機關均認可 GS1、HIBCC、ICCBBA 等國際發證機構。實務要求：同一產品型號在全球應統一採用同一發證機構之語法（如全 GS1 或全 HIBCC）。若跨國切換條碼語法，將導致各國 UDI-DI 數據庫無法串接，被認定為不同產品。" },
+            { q: "5. 瑞士 CH-REP 與歐盟 EU AR 之追溯權責有何劃分？", a: "不可直接等同。瑞士脫歐後，EU AR 在瑞士無法律效力。海外製造商必須單獨指定位於瑞士境內的實體作為 CH-REP。CH-REP 須於 swissdamed 獨立登記，並對瑞士境內的產品數據完整性與警戒事件承擔獨立的民事與行政法律責任。" },
+            { q: "6. 澳洲 Sponsor 與新加坡 Registrant 在 UDI 變更時的申報時限為何？", a: "當 UDI-DI 或產品屬性發生變更時：澳洲 Sponsor 須於變更發生後或上市前於 AusUDID 及 ARTG 完成更新；新加坡 Registrant 須透過 MEDICS 提出 Change Notification，審核通過後（通常為 14-30 天）方可於新加坡發售新 UDI 包裝。" },
+            { q: "7. 台灣進口藥商 UDI 變更申報 SOP 與時限為何？", a: "台灣持照藥商收到原廠 UDI 變更通知後，若涉及許可證標籤變更，須向 TFDA 申請許可證變更登記；若僅為新增 UDI-DI，應於產品進口放行前至「衛生福利部 UDI 標示單一資料庫」完成登錄，並於「醫療器材來源流向系統」更新。" },
+            { q: "8. 韓國 MFDS 52 品項 vs. 美國 FDA Part 821 追溯至患者有何實質差異？", a: "美韓皆要求追溯至患者。美國 FDA Part 821 重點在於製造商須建立 14 天內定位患者的機制；韓國 MFDS 52 品項更為嚴苛，要求醫療機構強制向 IMDIS 系統即時登錄患者姓名、生日、植入日。兩者均透過醫療隱私專章（HIPAA / PIPA）進行去識別化保護。" },
+            { q: "9. 歐盟 MDR 植入卡（Implant Card）是否可以直接用於其它國家？", a: "歐盟 MDR 植入卡架構可作為全球基底，但須在地化：歐盟/瑞士要求包含 Basic UDI-DI/UDI-DI 及當地官方語言；澳洲 TGA 要求符合 PIC/Implant Card 規範；台灣 TFDA 則要求 Class III 植入物隨附中文說明或植入卡。建議採用圖示化（Symbol-based）多語卡片。" },
+            { q: "10. 重複使用器械直接標記（DPM）的測試標準為何？", a: "針對需反覆滅菌的手術器械，FDA、EU MDR、MFDS 與 TGA 的測試標準均要求 DPM（通常為雷射雕刻）須經受至少 100-500 次臨床模擬清洗滅菌循環（依據 ISO 17664），條碼等級仍須符合 ISO/IEC 15415 可讀取標準。" },
+            { q: "11. 第三方物流（3PL）在各國的合規地位與紀錄保存責任為何？", a: "若 3PL 不取得器材所有權，在 FDA、MDR、TGA、TFDA 之下歸類為物流服務商；但新加坡 HSA (GDPMDS) 要求 3PL 須取得 GDPMDS 證書。即使不認定為經銷商，製造商/進口商仍須於 SLA 合約中強制 3PL 保存 10-15 年的出貨 UDI 批號日誌。" },
+            { q: "12. 跨國 FSCA 召回與多國資料庫聯動的合規 SOP 為何？", a: "原廠啟動 FSCA 後，中央 QMS 系統須於 24 小時內依據全球 ERP 中的 UDI-PI 批號發出「受影響清單」，並同步通知各地代表：歐盟/瑞士 (EUDAMED/swissdamed, 15天內)、美國 (21 CFR 806, 10天內)、澳洲 (DRAC, 48小時/10天內)、新加坡 (HSA, 24小時/7天內)、韓國/台灣 (即時/24小時內)。" },
+            { q: "13. 瑕疵品退運（逆向物流）之 UDI 申報流程為何？", a: "瑕疵品退回海外原廠時，進口商/經銷商須於在地系統申報：韓國向 IMDIS 申報「退貨/廢棄」代碼；台灣於「來源流向系統」勾選「退貨出口」；新加坡與歐盟則須於內部 GDPMDS/QMS 異動日誌中紀錄 UDI-PI，並附帶海關進出口退運單據進行平帳。" },
+            { q: "14. 獨立軟體（SaMD）UDI-PI 版本號修訂規則為何？", a: "Major Version（重大更新，涉及演算法、核心功能、資安結構）：須賦予全新 UDI-DI，並向各國資料庫重新註冊。Minor Version（Bug 修復、UI微調）：僅需更新 UDI-PI（軟體版本號），並於軟體「About」畫面展示，無須更換 UDI-DI，但須於內部 QMS 變更歷史留存紀錄。" },
+            { q: "15. 新加坡 HSA 資安追溯矩陣與美歐資安文件有何替代性？", a: "HSA 資安追溯矩陣（Risk ➔ Control ➔ Validation Test）要求極為具體。美國 FDA eSTAR 資安章節或歐盟 MDCG 2019-16 文件可以作為基礎素材，但不能直接替代。必須依照 HSA 格式將威脅建模與測試驗證報告精準映射至矩陣欄位中。" },
+            { q: "16. 品質體系（QMS）稽核中最常見的 UDI 缺失有哪些？", a: "最常見 Top 3 缺失：1. 標籤 UDI-PI 與包裝實物不符（如條碼讀出文字與 HRI 明碼不一致）；2. ERP 出貨紀錄未擷取 UDI-PI（僅紀錄型號，未紀錄批號/序號）；3. EUDAMED/GUDID 資料庫屬性與技術文件不一致。" },
+            { q: "17. 瑞士 Emergency Override 緊急追溯日誌之預警機制為何？", a: "企業須於 QMS 中建立「瑞士緊急追溯 SOP」：當發生 FSCA 時，ERP 系統必須能夠在 2 小時內調出該批號產品在瑞士境內所有進口商、經銷商及醫院的完整交付日誌（包含 UDI-DI, UDI-PI, 數量, 交付日期），並填入 Swissmedic 專用表單提交。" },
+            { q: "18. 韓國 IMDIS 供應歷史漏報之連鎖處分風險為何？", a: "若經銷商連續漏報，MFDS 依據《醫療機器法》可發布行政處分（停止營業 15 天至 3 個月）。若因經銷商漏報導致問題批號無法追溯，持照進口商與海外製造商亦可能因「未盡供應鏈監督責任」而被扣減 KGMP 合規分數或暫停產品進口。" },
+            { q: "19. 台灣 TFDA 來源流向未申報之裁罰標準為何？", a: "依據台灣《醫療器材管理法》第 70 條，未依規定建立來源流向計畫、未保存紀錄或申報不實者，處新臺幣 3 萬元以上 100 萬元以下罰鍰；情節重大者，得令其歇業、廢止醫療器材許可證或藥商許可執照。" },
+            { q: "20. 全球追溯文件保存年限的最嚴格交集為何？", a: "全球最嚴格標準為：植入性器材為 15 年（MDR, Swissmedic, HSA）；一般器材為 10 年（或產品預期壽命）。建議 SOP：企業應統一規定「所有產品追溯紀錄、DoC 及 UDI 交易日誌，自最後一批產品出廠日起算，統一強制保存 15 年」，以滿足全球合規最高公因數。" }
+        ];
+
+        let sampleMarkdownReport = `# 全球主要國家與地區醫療器材追溯與 UDI 監管體系總覽
+
+*報告生成時間：${new Date().toLocaleDateString('zh-TW')} | 研析引擎：Gemini 3.1 Agent Grounding*
+
+---
+
+## 1. 跨國監管架構綜述
+
+全球醫療器材主管機關（如 US FDA, EU MDR, AU TGA, SG HSA, JP PMDA, CN NMPA, KR MFDS, CH Swissmedic, TW TFDA）正全面推行**唯一醫療器材識別碼（UDI）**與無斷點供應鏈追溯。雖然各國多以 IMDRF N48 國際指引為基底，但在**中央資料庫對接、在地授權代表法律責任、高風險植入物直達患者追溯，以及嚴重警戒通報時限**上存在關鍵顯著差異。
+
+---
+
+## 2. 跨國比較總表
+
+| 國家 / 機構 | 法規依據 | 中央資料庫 | UDI 特色與編碼要求 | 供應鏈追溯與特定品項要求 | 參考指引文件 | 專家綜合解析 |
+| --- | --- | --- | --- | --- | --- | --- |
+| **美國 FDA** | 21 CFR 830 / 821 | GUDID | UDI-DI + UDI-PI, DPM | Part 821 指定高風險植入物/維生設備追溯至患者 | 21 CFR 830/821 | 發展最早，GUDID為全球標準參考。 |
+| **歐盟 MDR** | EU 2017/745 | EUDAMED | Basic UDI-DI + UDI-DI + UDI-PI | 經濟營運者10/15年紀錄，Class III 植入卡 | EU MDR Art. 27 | 獨創 Basic UDI-DI，全鏈條連坐責任。 |
+| **英國 MHRA** | UK MDR 2002 | MHRA Reg | 採認 GS1/HIBCC 格式 | UKRP 承擔在地法律責任，10/15年日誌 | UK MDR Guide | 脫歐過渡期，採認 CE 標誌過渡條款。 |
+| **澳洲 TGA** | TG Regulations | AusUDID | UDI-DI + UDI-PI, ARTG 綁定 | Sponsor 承擔數據責任，批發商批號日誌 | TG Act 1989 | 數據須雙向連結 ARTG 與 AusUDID。 |
+| **新加坡 HSA** | HP Regulations | MEDICS | UDI-DI + UDI-PI, GN-23 | SS 620 GDPMDS, SAR 專案 30天分銷聲明 | HSA GN-23/33 | 對 SAR 專案與 SaMD 資安矩陣要求嚴格。 |
+| **日本 PMDA** | PMD Act | JMDN/PMDA | GS1-128 / DataMatrix | 高度管理醫療機器強制留存患者紀錄 | PMD Act Art.63 | 全面整合 GS1 標準於醫院條碼體系。 |
+| **中國 NMPA** | 唯一標識規則 | NMPA UDI | 條碼涵蓋最小銷售單元 | 註冊人上傳責任，經營企業/醫院錄入 | 2019年72號公告 | 分批次強制目錄，資料庫與醫保對接。 |
+| **韓國 MFDS** | 《醫療機器法》 | IMDIS | UDI-DI + UDI-PI, DPM | 52項追跡管理對象3天內申報直達患者 | 第31-2條告示 | 監管極嚴，每月/3天內申報供應歷史。 |
+| **瑞士 Swissmedic** | MedDO/IvDO | swissdamed | 與 EUDAMED 對齊 | CH-REP 強制指定，進口商標示，15年日誌 | Swiss MedDO | 脫歐自建，安全事件時寬限期立即撤銷。 |
+| **台灣 TFDA** | 《醫材法》19/32條 | UDI 資料庫 | UDI-DI + UDI-PI, QSD | 醫療器材來源流向計畫，特定植入物申報 | 《醫材法》專區 | 分階段實施，與 QSD/GMP 高度結合。 |
+
+---
+
+## 3. 各國獨立監管深研專章
+
+### 3.1 美國 FDA
+依據 21 CFR Part 830 建立 GUDID 資料庫。對 21 CFR Part 821 指定的高風險植入物及維生設備，實施最高強度的患者級追蹤指令（Tracking Orders）。重複使用器械必須執行 Direct Part Marking (DPM)。
+
+### 3.2 歐盟 EU MDR / IVDR
+歐盟 MDR (2017/745) 獨創 Basic UDI-DI（主存儲碼，用於 DoC 與 CE 證書），實體標籤印製 UDI-DI + UDI-PI。經濟營運者須保持 10/15 年追溯紀錄，醫院強制留存 Class III 植入物 UDI 並隨附患者植入卡 (Implant Card)。
+
+### 3.3 韓國 MFDS
+划定 52 項「追跡管理對象醫療機器」（48項長期植入物+4項家用維生設備），強制追溯至患者姓名、生日與植入日。一般器材每月申報供應歷史，52 品項須於交易發生後 3 天內向 IMDIS 上傳，罰則極嚴。
+
+### 3.4 瑞士 Swissmedic
+因脫歐自建 MedDO/IvDO 與 swissdamed 資料庫。海外製造商須指定瑞士在地代表 (CH-REP)，進口商須於標籤/隨附文件標示。若發生 Serious Incident 或 FSCA，原本截至 2026/12/31 的過渡寬限期將完全撤銷，須即時提交追溯日誌。
+
+### 3.5 台灣 TFDA
+依據《醫療器材管理法》第 19 與 32 條，建置 UDI 單一資料庫與「醫療器材來源流向建立計畫」。經銷商與醫療機構須建立進銷存雙向紀錄，特定高風險植入物須線上申報流向。`;
+
+        // INITIALIZATION
+        window.onload = function() {
+            renderMatrixTable();
+            renderQA();
+            initCharts();
+            renderReportMarkdown();
+            calculateComplianceRisk();
+            updateUdiLabelMockup();
+        };
+
+        // TAB SWITCHING LOGIC
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('text-sky-400', 'bg-sky-950/70', 'border', 'border-sky-800/60', 'text-amber-400', 'text-purple-400', 'text-emerald-400');
+                el.classList.add('text-slate-400');
+            });
+
+            document.getElementById('sec-' + tabId).classList.remove('hidden');
+            const activeBtn = document.getElementById('tab-' + tabId);
+            activeBtn.classList.remove('text-slate-400');
+            
+            if (tabId === 'wow1') activeBtn.classList.add('text-amber-400', 'bg-amber-950/40');
+            else if (tabId === 'wow2') activeBtn.classList.add('text-purple-400', 'bg-purple-950/40');
+            else if (tabId === 'wow3') activeBtn.classList.add('text-emerald-400', 'bg-emerald-950/40');
+            else activeBtn.classList.add('text-sky-400', 'bg-sky-950/70', 'border', 'border-sky-800/60');
+        }
+
+        // RENDER MASTER MATRIX TABLE
+        function renderMatrixTable() {
+            const tbody = document.getElementById('matrixTableBody');
+            tbody.innerHTML = '';
+            matrixData.forEach((row, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-900/60 transition-colors";
+                tr.innerHTML = `
+                    <td class="p-3.5 font-bold text-sky-400 border-r border-slate-800/60">${row.country}</td>
+                    <td class="p-3.5 border-r border-slate-800/60" contenteditable="true" onblur="updateMatrixData(${idx}, 'regulation', this.innerHTML)">${row.regulation}</td>
+                    <td class="p-3.5 font-semibold text-emerald-400 border-r border-slate-800/60" contenteditable="true" onblur="updateMatrixData(${idx}, 'database', this.innerHTML)">${row.database}</td>
+                    <td class="p-3.5 border-r border-slate-800/60" contenteditable="true" onblur="updateMatrixData(${idx}, 'udi', this.innerHTML)">${row.udi}</td>
+                    <td class="p-3.5 border-r border-slate-800/60" contenteditable="true" onblur="updateMatrixData(${idx}, 'traceability', this.innerHTML)">${row.traceability}</td>
+                    <td class="p-3.5 border-r border-slate-800/60 text-slate-400" contenteditable="true" onblur="updateMatrixData(${idx}, 'references', this.innerHTML)">${row.references}</td>
+                    <td class="p-3.5 text-slate-300" contenteditable="true" onblur="updateMatrixData(${idx}, 'comments', this.innerHTML)">${row.comments}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateMatrixData(idx, field, val) {
+            matrixData[idx][field] = val;
+            showStatusBadge("內容已更新並同步");
+        }
+
+        function filterMatrixTable() {
+            const q = document.getElementById('matrixSearch').value.toLowerCase();
+            const rows = document.querySelectorAll('#matrixTableBody tr');
+            rows.forEach(r => {
+                const text = r.innerText.toLowerCase();
+                r.style.display = text.includes(q) ? '' : 'none';
+            });
+        }
+
+        function resetMatrixTable() {
+            document.getElementById('matrixSearch').value = '';
+            renderMatrixTable();
+        }
+
+        // RENDER QA ACCORDION
+        function renderQA() {
+            const container = document.getElementById('qaContainer');
+            container.innerHTML = '';
+            qaData.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = "glass-panel rounded-xl border border-slate-800 overflow-hidden qa-item";
+                div.innerHTML = `
+                    <button onclick="toggleQA(${idx})" class="w-full text-left p-4 font-semibold text-xs sm:text-sm text-slate-200 hover:text-sky-400 flex justify-between items-center transition-colors bg-slate-900/50">
+                        <span>${item.q}</span>
+                        <i class="fa-solid fa-chevron-down text-slate-500 transition-transform duration-300" id="qa-icon-${idx}"></i>
+                    </button>
+                    <div class="hidden p-4 text-xs text-slate-300 leading-relaxed border-t border-slate-800/60 bg-slate-950/40" id="qa-body-${idx}">
+                        ${item.a}
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function toggleQA(idx) {
+            const body = document.getElementById(`qa-body-${idx}`);
+            const icon = document.getElementById(`qa-icon-${idx}`);
+            if (body.classList.contains('hidden')) {
+                body.classList.remove('hidden');
+                icon.classList.add('rotate-180');
+            } else {
+                body.classList.add('hidden');
+                icon.classList.remove('rotate-180');
+            }
+        }
+
+        function filterQA() {
+            const q = document.getElementById('qaSearch').value.toLowerCase();
+            document.querySelectorAll('.qa-item').forEach(el => {
+                el.style.display = el.innerText.toLowerCase().includes(q) ? '' : 'none';
+            });
+        }
+
+        // RENDER MARKDOWN REPORT
+        function renderReportMarkdown() {
+            document.getElementById('report-rendered-view').innerHTML = marked.parse(sampleMarkdownReport);
+            document.getElementById('reportMarkdownTextarea').value = sampleMarkdownReport;
+        }
+
+        function toggleMarkdownEditMode() {
+            const rendered = document.getElementById('report-rendered-view');
+            const editor = document.getElementById('report-editor-view');
+            const btn = document.getElementById('btn-toggle-edit');
+            
+            if (editor.classList.contains('hidden')) {
+                editor.classList.remove('hidden');
+                rendered.classList.add('hidden');
+                btn.innerHTML = `<i class="fa-solid fa-eye"></i> 切換預覽渲染圖`;
+            } else {
+                editor.classList.add('hidden');
+                rendered.classList.remove('hidden');
+                btn.innerHTML = `<i class="fa-solid fa-pen-to-square"></i> 切換編輯原始碼`;
+            }
+        }
+
+        function updateReportFromTextarea() {
+            sampleMarkdownReport = document.getElementById('reportMarkdownTextarea').value;
+            document.getElementById('report-rendered-view').innerHTML = marked.parse(sampleMarkdownReport);
+            showStatusBadge("報告原始碼已同步");
+        }
+
+        function copyReportMarkdown() {
+            navigator.clipboard.writeText(sampleMarkdownReport);
+            showStatusBadge("已複製報告 Markdown 至剪貼簿");
+        }
+
+        // CHART.JS INITIALIZATION
+        function initCharts() {
+            // Chart 1: Radar Depth
+            new Chart(document.getElementById('chartRadarDepth'), {
+                type: 'radar',
+                data: {
+                    labels: ['US FDA', 'EU MDR', 'UK MHRA', 'AU TGA', 'SG HSA', 'JP PMDA', 'CN NMPA', 'KR MFDS', 'CH Swiss', 'TW TFDA'],
+                    datasets: [{
+                        label: '患者端直達追溯強度',
+                        data: [95, 90, 80, 85, 85, 88, 92, 100, 85, 88],
+                        fill: true,
+                        backgroundColor: 'rgba(2, 132, 199, 0.25)',
+                        borderColor: '#38bdf8',
+                        pointBackgroundColor: '#38bdf8'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(255,255,255,0.1)' },
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            pointLabels: { color: '#94a3b8', font: { size: 9 } },
+                            ticks: { display: false }
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Chart 2: Retention
+            new Chart(document.getElementById('chartRetention'), {
+                type: 'bar',
+                data: {
+                    labels: ['US FDA', 'EU MDR', 'UK MHRA', 'AU TGA', 'SG HSA', 'JP PMDA', 'CN NMPA', 'KR MFDS', 'CH Swiss', 'TW TFDA'],
+                    datasets: [
+                        { label: '一般器材 (年)', data: [10, 10, 10, 10, 10, 5, 5, 5, 10, 5], backgroundColor: '#0284c7' },
+                        { label: '植入性器材 (年)', data: [15, 15, 15, 15, 15, 15, 10, 10, 15, 10], backgroundColor: '#10b981' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: { color: '#94a3b8', font: { size: 8 } }, grid: { display: false } },
+                        y: { ticks: { color: '#94a3b8', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    },
+                    plugins: { legend: { labels: { color: '#cbd5e1', font: { size: 9 } } } }
+                }
+            });
+
+            // Chart 3: Timelines
+            new Chart(document.getElementById('chartTimelines'), {
+                type: 'bar',
+                data: {
+                    labels: ['FDA', 'EU', 'MHRA', 'TGA', 'HSA', 'PMDA', 'NMPA', 'MFDS', 'Swiss', 'TFDA'],
+                    datasets: [{
+                        label: '極嚴重公共衛生威脅初次通報時限 (小時)',
+                        data: [240, 48, 48, 48, 24, 48, 24, 168, 48, 24],
+                        backgroundColor: '#f59e0b'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: { color: '#94a3b8', font: { size: 9 } }, grid: { display: false } },
+                        y: { ticks: { color: '#94a3b8', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Chart 4: UDI Attribute Adoption
+            new Chart(document.getElementById('chartUdiAdopt'), {
+                type: 'bar',
+                data: {
+                    labels: ['FDA', 'EU', 'MHRA', 'TGA', 'HSA', 'PMDA', 'NMPA', 'MFDS', 'Swiss', 'TFDA'],
+                    datasets: [
+                        { label: 'Basic UDI-DI 採認', data: [0, 1, 0, 0, 0, 0, 0, 0, 1, 0], backgroundColor: '#a855f7' },
+                        { label: 'Direct Marking (DPM)', data: [1, 1, 1, 0.5, 0.5, 0.5, 0.5, 1, 1, 0.5], backgroundColor: '#38bdf8' },
+                        { label: 'Implant Card 植入卡', data: [0.5, 1, 1, 1, 0.5, 0.5, 0.5, 0.5, 1, 1], backgroundColor: '#f43f5e' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true, ticks: { color: '#94a3b8', font: { size: 9 } }, grid: { display: false } },
+                        y: { stacked: true, ticks: { color: '#94a3b8', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    },
+                    plugins: { legend: { labels: { color: '#cbd5e1', font: { size: 9 } } } }
+                }
+            });
+
+            // Chart 5: Operator Burden
+            new Chart(document.getElementById('chartOperatorBurden'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['製造商 (Manufacturer)', '在地代表 (AR/Sponsor/CH-REP)', '進口商 (Importer)', '分銷商 (Distributor)', '醫療機構 (Hospital)'],
+                    datasets: [{
+                        data: [35, 25, 15, 15, 10],
+                        backgroundColor: ['#0284c7', '#10b981', '#f59e0b', '#8b5cf6', '#f43f5e']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right', labels: { color: '#cbd5e1', font: { size: 8 } } } }
+                }
+            });
+        }
+
+        // WOW FEATURE 1: RISK CALCULATOR LOGIC
+        function calculateComplianceRisk() {
+            const riskClass = document.getElementById('risk-class').value;
+            const isImplant = document.getElementById('feat-implant').checked;
+            const isSaMD = document.getElementById('feat-samd').checked;
+            const isReusable = document.getElementById('feat-reusable').checked;
+
+            let baseScore = 50;
+            if (riskClass === 'Class III') baseScore = 95;
+            else if (riskClass === 'Class IIb') baseScore = 78;
+            else if (riskClass === 'Class IIa') baseScore = 62;
+
+            if (isImplant) baseScore += 10;
+            if (isSaMD) baseScore += 5;
+            if (isReusable) baseScore += 5;
+
+            const finalScore = Math.min(100, baseScore);
+            let riskLevel = "中度管制 (Moderate Risk)";
+            let badgeClass = "text-amber-400 bg-amber-950/80 border-amber-800";
+
+            if (finalScore >= 85) {
+                riskLevel = "極高管制 (Critical High Risk)";
+                badgeClass = "text-rose-400 bg-rose-950/80 border-rose-800";
+            } else if (finalScore < 60) {
+                riskLevel = "低度管制 (Standard Control)";
+                badgeClass = "text-emerald-400 bg-emerald-950/80 border-emerald-800";
+            }
+
+            const panel = document.getElementById('risk-result-panel');
+            panel.innerHTML = `
+                <div class="flex justify-between items-start border-b border-slate-800 pb-3">
+                    <div>
+                        <span class="text-xs px-2.5 py-1 rounded-full border ${badgeClass} font-semibold">${riskLevel}</span>
+                        <h4 class="text-base font-bold text-white mt-2">合規複雜度評分：<span class="text-amber-400">${finalScore} / 100</span></h4>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs text-slate-400">最嚴格文件留存年限</p>
+                        <p class="text-sm font-bold text-emerald-400">${isImplant ? '15 年 (植入物高標準)' : '10 年'}</p>
+                    </div>
+                </div>
+
+                <div class="space-y-2 text-xs">
+                    <h5 class="font-semibold text-slate-200">關鍵法規警訊與必備要求 (Key Regulatory Impact):</h5>
+                    <ul class="space-y-1.5 text-slate-300">
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation text-amber-400"></i> <strong>韓國 MFDS：</strong> ${isImplant ? '屬於 52 項追跡管理對象，必須於交易發生 3 天內向 IMDIS 申報，並直達患者姓名與生日。' : '須於每月月底前向 IMDIS 申報月供應歷史。'}</li>
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-barcode text-purple-400"></i> <strong>直接標記 (DPM)：</strong> ${isReusable ? '此器材需重複滅菌，在美、歐、韓、澳均強制要求於器材本體進行雷射 DPM UDI 標記！' : '無須本體 DPM，僅需包裝標籤 UDI。'}</li>
+                        <li class="flex items-center gap-2"><i class="fa-solid fa-shield-halved text-sky-400"></i> <strong>SaMD 資安追溯：</strong> ${isSaMD ? '新加坡 HSA 要求提交「資安追溯矩陣 (Traceability Matrix)」，軟體 Minor 更新須登錄 UDI-PI。' : '免除資安追溯矩陣，僅需基本軟體版本控管。'}</li>
+                    </ul>
+                </div>
+
+                <div class="pt-2 border-t border-slate-800 flex justify-between text-xs text-slate-400">
+                    <span>緊急召回調閱 SOP 要求：<strong class="text-slate-200">2 小時內完成雙向批號追溯</strong></span>
+                    <span>建議文件保存 SOP：<strong class="text-slate-200">統一 15 年</strong></span>
+                </div>
+            `;
+        }
+
+        // WOW FEATURE 2: UDI LABEL MOCKUP LOGIC
+        function updateUdiLabelMockup() {
+            const mfr = document.getElementById('lbl-mfr').value;
+            const name = document.getElementById('lbl-name').value;
+            const di = document.getElementById('lbl-di').value;
+            const lot = document.getElementById('lbl-lot').value;
+            const sn = document.getElementById('lbl-sn').value;
+            const exp = document.getElementById('lbl-exp').value;
+
+            const hriString = `(01)${di}(17)${exp.replace(/-/g, '').slice(2)}(10)${lot}(21)${sn}`;
+
+            const container = document.getElementById('label-preview-container');
+            container.innerHTML = `
+                <div>
+                    <div class="flex justify-between items-start border-b border-purple-500/30 pb-2 mb-3">
+                        <h4 class="text-xs font-bold text-purple-300 flex items-center gap-1.5"><i class="fa-solid fa-certificate"></i> 合規多國 UDI 包裝標籤預覽 Mockup</h4>
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800">ISO 15223-1</span>
+                    </div>
+
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-700 font-mono text-[11px] text-slate-200 space-y-2 shadow-inner">
+                        <div class="flex justify-between font-bold text-sky-400">
+                            <span>${mfr}</span>
+                            <span>REF ${di.slice(-6)}</span>
+                        </div>
+                        <p class="text-sm font-bold text-white font-sans">${name}</p>
+                        
+                        <div class="grid grid-cols-2 gap-2 text-[10px] text-slate-300 border-t border-b border-slate-800 py-1.5">
+                            <div>LOT: <strong>${lot}</strong></div>
+                            <div>SN: <strong>${sn}</strong></div>
+                            <div>EXP: <strong>${exp}</strong></div>
+                            <div>GTIN: <strong>${di}</strong></div>
+                        </div>
+
+                        <!-- Symbols -->
+                        <div class="flex items-center gap-3 pt-1 text-slate-400 font-sans text-[10px]">
+                            <span class="border border-slate-700 px-1 rounded">EC REP</span>
+                            <span class="border border-slate-700 px-1 rounded">CH REP</span>
+                            <span>STERILE EO</span>
+                            <span>Rx Only</span>
+                        </div>
+
+                        <!-- DataMatrix Mockup Zone -->
+                        <div class="flex items-center gap-3 pt-2 bg-slate-900/80 p-2 rounded border border-slate-800">
+                            <div class="w-12 h-12 bg-white p-1 flex items-center justify-center rounded">
+                                <div class="w-full h-full bg-slate-950 grid grid-cols-4 gap-0.5 p-0.5">
+                                    <div class="bg-white"></div><div class="bg-transparent"></div><div class="bg-white"></div><div class="bg-white"></div>
+                                    <div class="bg-transparent"></div><div class="bg-white"></div><div class="bg-transparent"></div><div class="bg-white"></div>
+                                    <div class="bg-white"></div><div class="bg-white"></div><div class="bg-white"></div><div class="bg-transparent"></div>
+                                    <div class="bg-white"></div><div class="bg-transparent"></div><div class="bg-white"></div><div class="bg-white"></div>
+                                </div>
+                            </div>
+                            <div class="overflow-hidden">
+                                <p class="text-[9px] text-slate-400">GS1 DataMatrix HRI 明碼字串：</p>
+                                <p class="text-[10px] font-bold text-emerald-400 tracking-tighter truncate">${hriString}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="text-[10px] text-slate-500 mt-2 text-right">支援 GS1 / HIBCC / ICCBBA 語法結構解析</p>
+            `;
+        }
+
+        // WOW FEATURE 3: GEMINI TTS SPEECH GENERATION
+        async function generateTtsSpeech() {
+            const voice = document.getElementById('tts-voice').value;
+            const script = document.getElementById('tts-script').value;
+            const btn = document.getElementById('btn-tts-generate');
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 正在生成 Gemini 語音 (.wav)...`;
+
+            try {
+                const apiKey = ""; // Runtime automatically injects API key if empty
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+                const payload = {
+                    contents: [{
+                        parts: [{ text: script }]
+                    }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: {
+                            voiceConfig: {
+                                prebuiltVoiceConfig: { voiceName: voice }
+                            }
+                        }
+                    },
+                    model: "gemini-2.5-flash-preview-tts"
+                };
+
+                const res = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await res.json();
+                const part = result?.candidates?.[0]?.content?.parts?.[0];
+                const audioData = part?.inlineData?.data;
+                const mimeType = part?.inlineData?.mimeType;
+
+                if (audioData && mimeType && mimeType.startsWith("audio/")) {
+                    const sampleRateMatch = mimeType.match(/rate=(\d+)/);
+                    const sampleRate = sampleRateMatch ? parseInt(sampleRateMatch[1], 10) : 24000;
+                    
+                    const pcmData = base64ToArrayBuffer(audioData);
+                    const pcm16 = new Int16Array(pcmData);
+                    const wavBlob = pcmToWav(pcm16, sampleRate);
+                    const audioUrl = URL.createObjectURL(wavBlob);
+
+                    const audioElement = document.getElementById('tts-audio-element');
+                    audioElement.src = audioUrl;
+                    document.getElementById('tts-audio-player-zone').classList.remove('hidden');
+                    audioElement.play();
+                    showStatusBadge("Gemini 語音簡報生成成功！");
+                } else {
+                    alert("語音生成失敗，請稍後再試。");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("生成語音時發生錯誤：" + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-waveform"></i> 生成專屬語音簡報 (.wav)`;
+            }
+        }
+
+        // AGENTIC SEARCH GENERATION LOGIC (GEMINI 3.1 SEARCH GROUNDING)
+        async function runAgenticGeneration() {
+            const model = document.getElementById('agent-model').value;
+            const query = document.getElementById('agent-query').value;
+            const systemPrompt = document.getElementById('agent-system-prompt').value;
+            const selectedCountries = Array.from(document.querySelectorAll('.country-chk:checked')).map(c => c.value);
+
+            if (selectedCountries.length === 0) {
+                alert("請至少選擇一個國家/地區進行研析。");
+                return;
+            }
+
+            closeAgentModal();
+            showStatusBadge("Gemini 實時搜尋研析中...");
+
+            const apiKey = ""; // Runtime automatically injects
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const fullPrompt = `研析目標國家: ${selectedCountries.join(', ')}。
+用戶主題要求: ${query}
+
+請以繁體中文撰寫一份包含以下單元的 3,500+ 字醫療器材追溯監管研析報告：
+1. 各選定國家的 UDI 與追溯核心法規綜述
+2. 包含 Requirements, Reference, Comments 欄位之綜合比較矩陣表格
+3. 20 大高階合規問答集 (Q&A)`;
+
+            const payload = {
+                contents: [{ parts: [{ text: fullPrompt }] }],
+                tools: [{ "google_search": {} }],
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            };
+
+            try {
+                const res = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (text) {
+                    sampleMarkdownReport = text;
+                    renderReportMarkdown();
+                    switchTab('report');
+                    showStatusBadge("Agent 搜尋研析完成！");
+                } else {
+                    alert("無法取得 AI 回覆結果。");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Agent 執行時發生錯誤：" + err.message);
+            }
+        }
+
+        // HELPER UTILITIES
+        function base64ToArrayBuffer(base64) {
+            const binaryString = window.atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function pcmToWav(pcm16, sampleRate) {
+            const buffer = new ArrayBuffer(44 + pcm16.length * 2);
+            const view = new DataView(buffer);
+
+            /* RIFF identifier */
+            writeString(view, 0, 'RIFF');
+            /* RIFF chunk length */
+            view.setUint32(4, 36 + pcm16.length * 2, true);
+            /* RIFF type */
+            writeString(view, 8, 'WAVE');
+            /* format chunk identifier */
+            writeString(view, 12, 'fmt ');
+            /* format chunk length */
+            view.setUint32(16, 16, true);
+            /* sample format (raw PCM) */
+            view.setUint16(20, 1, true);
+            /* channel count (1) */
+            view.setUint16(22, 1, true);
+            /* sample rate */
+            view.setUint32(24, sampleRate, true);
+            /* byte rate (sampleRate * 2) */
+            view.setUint32(28, sampleRate * 2, true);
+            /* block align */
+            view.setUint16(32, 2, true);
+            /* bits per sample */
+            view.setUint16(34, 16, true);
+            /* data chunk identifier */
+            writeString(view, 36, 'data');
+            /* data chunk length */
+            view.setUint32(40, pcm16.length * 2, true);
+
+            // Write PCM samples
+            let offset = 44;
+            for (let i = 0; i < pcm16.length; i++, offset += 2) {
+                view.setInt16(offset, pcm16[i], true);
+            }
+
+            return new Blob([buffer], { type: 'audio/wav' });
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        function showStatusBadge(msg) {
+            const badge = document.getElementById('status-badge');
+            document.getElementById('status-text').innerText = msg;
+            badge.classList.remove('hidden');
+            setTimeout(() => badge.classList.add('hidden'), 3500);
+        }
+
+        function openAgentModal() { document.getElementById('agentModal').classList.remove('hidden'); }
+        function closeAgentModal() { document.getElementById('agentModal').classList.add('hidden'); }
+
+        function exportMarkdown() {
+            const blob = new Blob([sampleMarkdownReport], { type: 'text/markdown;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `Global_MedDevice_Traceability_Report_${new Date().toISOString().slice(0,10)}.md`;
+            link.click();
+        }
+
+        function exportHTML() {
+            const fullHTML = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+            const blob = new Blob([fullHTML], { type: 'text/html;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `Global_MedDevice_Intelligence_Agent_${new Date().toISOString().slice(0,10)}.html`;
+            link.click();
+        }
+    </script>
+</body>
+</html>

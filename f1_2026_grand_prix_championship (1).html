@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>F1 2026 World Championship & Telemetry Simulator</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            f1red: '#FF1801',
+            f1dark: '#0B0E14',
+            f1card: '#121824',
+            f1border: '#1A2332',
+            papaya: '#FF8000',
+            petronas: '#27F4D2',
+            ferrari: '#E80020'
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+            racing: ['Orbitron', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@600;800;900&display=swap" rel="stylesheet">
+
+  <!-- React & React DOM UMD -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <!-- Babel Standalone for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Chart.js for Telemetry Graphs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <style>
+    /* Custom Scrollbar and Racing Scanlines */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0e14;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #ef4444;
+    }
+    .carbon-bg {
+      background-color: #0b0e14;
+      background-image: radial-gradient(#1e293b 0.75px, transparent 0.75px), radial-gradient(#1e293b 0.75px, #0b0e14 0.75px);
+      background-size: 30px 30px;
+      background-position: 0 0, 15px 15px;
+    }
+    .scanline {
+      background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.3));
+      background-size: 100% 4px;
+    }
+    .glow-red {
+      box-shadow: 0 0 20px rgba(255, 24, 1, 0.35);
+    }
+    .glow-cyan {
+      box-shadow: 0 0 20px rgba(39, 244, 210, 0.35);
+    }
+  </style>
+</head>
+<body class="bg-f1dark text-white font-sans antialiased carbon-bg min-h-screen">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // ==========================================
+    // 1. DATA CONFIGURATION: TEAMS & DRIVERS
+    // ==========================================
+    const F1_TEAMS = [
+      {
+        id: "redbull",
+        name: "Oracle Red Bull Racing",
+        shortName: "Red Bull",
+        code: "RBR",
+        color: "#3671C6",
+        accent: "#FCD703",
+        engine: "Red Bull-Ford Powertrains",
+        carModel: "RB22",
+        powerIndex: 98,
+        aeroIndex: 99,
+        reliability: 96,
+        drivers: [
+          { id: "ver", name: "Max Verstappen", number: 1, country: "🇳🇱", rating: 98, pace: 99, consistency: 97, overtake: 98, tireMgmt: 96, avatar: "🏎️" },
+          { id: "law", name: "Liam Lawson", number: 30, country: "🇳🇿", rating: 84, pace: 85, consistency: 83, overtake: 86, tireMgmt: 82, avatar: "🏎️" }
+        ]
+      },
+      {
+        id: "ferrari",
+        name: "Scuderia Ferrari HP",
+        shortName: "Ferrari",
+        code: "SF",
+        color: "#E80020",
+        accent: "#FFF000",
+        engine: "Ferrari 066/12",
+        carModel: "SF-26",
+        powerIndex: 97,
+        aeroIndex: 96,
+        reliability: 94,
+        drivers: [
+          { id: "ham", name: "Lewis Hamilton", number: 44, country: "🇬🇧", rating: 96, pace: 96, consistency: 97, overtake: 98, tireMgmt: 97, avatar: "🏎️" },
+          { id: "lec", name: "Charles Leclerc", number: 16, country: "🇲🇨", rating: 95, pace: 98, consistency: 92, overtake: 96, tireMgmt: 93, avatar: "🏎️" }
+        ]
+      },
+      {
+        id: "mclaren",
+        name: "McLaren Formula 1 Team",
+        shortName: "McLaren",
+        code: "MCL",
+        color: "#FF8000",
+        accent: "#5931C4",
+        engine: "Mercedes-AMG M17",
+        carModel: "MCL39",
+        powerIndex: 97,
+        aeroIndex: 98,
+        reliability: 97,
+        drivers: [
+          { id: "nor", name: "Lando Norris", number: 4, country: "🇬🇧", rating: 95, pace: 97, consistency: 94, overtake: 93, tireMgmt: 94, avatar: "🏎️" },
+          { id: "pia", name: "Oscar Piastri", number: 81, country: "🇦🇺", rating: 93, pace: 94, consistency: 96, overtake: 92, tireMgmt: 92, avatar: "🏎️" }
+        ]
+      },
+      {
+        id: "mercedes",
+        name: "Mercedes-AMG PETRONAS",
+        shortName: "Mercedes",
+        code: "MER",
+        color: "#27F4D2",
+        accent: "#C0C0C0",
+        engine: "Mercedes-AMG M17",
+        carModel: "W17 E Performance",
+        powerIndex: 96,
+        aeroIndex: 95,
+        reliability: 98,
+        drivers: [
+          { id: "rus", name: "George Russell", number: 63, country: "🇬🇧", rating: 92, pace: 94, consistency: 93, overtake: 91, tireMgmt: 91, avatar: "🏎️" },
+          { id: "ant", name: "Andrea Kimi Antonelli", number: 12, country: "🇮🇹", rating: 85, pace: 89, consistency: 80, overtake: 88, tireMgmt: 81, avatar: "🏎️" }
+        ]
+      },
+      {
+        id: "astonmartin",
+        name: "Aston Martin Aramco F1 Team",
+        shortName: "Aston Martin",
+        code: "AMR",
+        color: "#229971",
+        accent: "#CEDC00",
+        engine: "Honda RBPT / Mercedes",
+        carModel: "AMR26",
+        powerIndex: 93,
+        aeroIndex: 94,
+        reliability: 95,
+        drivers: [
+          { id: "alo", name: "Fernando Alonso", number: 14, country: "🇪🇸", rating: 94, pace: 94, consistency: 97, overtake: 98, tireMgmt: 98, avatar: "🏎️" },
+          { id: "str", name: "Lance Stroll", number: 18, country: "🇨🇦", rating: 80, pace: 81, consistency: 78, overtake: 82, tireMgmt: 79, avatar: "🏎️" }
+        ]
+      },
+      {
+        id: "alpine",
+        name: "BWT Alpine F1 Team",
+        shortName: "Alpine",
+        code: "ALP",
+        color: "#0093CC",
+        accent: "#FF87BC",
+        engine: "Renault E-Tech 26",
+        carModel: "A526",
+        powerIndex: 89,
+        aeroIndex: 88,
+        reliability: 90,
+        drivers: [
+          { id: "gas", name: "Pierre Gasly", number: 10, country: "🇫🇷", rating: 87, pace: 88, consistency: 86, overtake: 87, tireMgmt: 86, avatar: "🏎️" },
+          { id: "doo", name: "Jack Doohan", number: 7, country: "🇦🇺", rating: 79, pace: 81, consistency: 78, overtake: 80, tireMgmt: 78, avatar: "🏎️" }
+        ]
+      },
+      {
+        id: "williams",
+        name: "Williams Racing",
+        shortName: "Williams",
+        code: "WIL",
+        color: "#64C4FF",
+        accent: "#005AFF",
+        engine: "Mercedes-AMG M17",
+        carModel: "FW48",
+        powerIndex: 91,
+        aeroIndex: 89,
+        reliability: 93,
+        drivers: [
+          { id: "sai", name: "Carlos Sainz", number: 55, country: "🇪🇸", rating: 93, pace: 93, consistency: 95, overtake: 92, tireMgmt: 94, avatar: "🏎️" },
+          { id: "alb", name: "Alexander Albon", number: 23, country: "🇹🇭", rating: 88, pace: 89, consistency: 88, overtake: 88, tireMgmt: 87, avatar: "🏎️" }
+        ]
+      },
+      {
+        id: "rb",
+        name: "Visa Cash App RB F1 Team",
+        shortName: "Racing Bulls",
+        code: "RB",
+        color: "#6692FF",
+        accent: "#FFFFFF",
+        engine: "Red Bull-Ford Powertrains",
+        carModel: "VCARB 03",
+        powerIndex: 90,
+        aeroIndex: 90,
+        reliability: 92,
+        drivers: [
+          { id: "tsu", name: "Yuki Tsunoda", number: 22, country: "🇯🇵", rating: 86, pace: 88, consistency: 83, overtake: 89, tireMgmt: 83, avatar: "🏎️" },
+          { id: "had", name: "Isack Hadjar", number: 6, country: "🇫🇷", rating: 81, pace: 83, consistency: 79, overtake: 83, tireMgmt: 79, avatar: "🏎️" }
+        ]
+      },
+      {
+        id: "sauber",
+        name: "Stake F1 Team Kick Sauber (Audi)",
+        shortName: "Sauber / Audi",
+        code: "SAU",
+        color: "#52E252",
+        accent: "#000000",
+        engine: "Audi F1 Power Unit",
+        carModel: "C46",
+        powerIndex: 88,
+        aeroIndex: 87,
+        reliability: 88,
+        drivers: [
+          { id: "hul", name: "Nico Hülkenberg", number: 27, country: "🇩🇪", rating: 86, pace: 87, consistency: 89, overtake: 85, tireMgmt: 87, avatar: "🏎️" },
+          { id: "bor", name: "Gabriel Bortoleto", number: 5, country: "🇧🇷", rating: 81, pace: 83, consistency: 80, overtake: 82, tireMgmt: 80, avatar: "🏎️" }
+        ]
+      },
+      {
+        id: "haas",
+        name: "MoneyGram Haas F1 Team",
+        shortName: "Haas",
+        code: "HAS",
+        color: "#B6BABD",
+        accent: "#DA291C",
+        engine: "Ferrari 066/12",
+        carModel: "VF-26",
+        powerIndex: 89,
+        aeroIndex: 86,
+        reliability: 91,
+        drivers: [
+          { id: "oco", name: "Esteban Ocon", number: 31, country: "🇫🇷", rating: 86, pace: 86, consistency: 87, overtake: 87, tireMgmt: 85, avatar: "🏎️" },
+          { id: "bea", name: "Oliver Bearman", number: 87, country: "🇬🇧", rating: 82, pace: 84, consistency: 81, overtake: 85, tireMgmt: 80, avatar: "🏎️" }
+        ]
+      }
+    ];
+
+    // ==========================================
+    // 2. DATA CONFIGURATION: 20 RACING TRACKS
+    // ==========================================
+    const RACING_TRACKS = [
+      { id: "melbourne", name: "Albert Park Circuit", location: "Melbourne, Australia", flag: "🇦🇺", lengthKm: 5.278, laps: 58, corners: 14, topSpeedKmh: 330, tireDeg: "Medium", elevationDiff: 12, pathType: "park" },
+      { id: "shanghai", name: "Shanghai International Circuit", location: "Shanghai, China", flag: "🇨🇳", lengthKm: 5.451, laps: 56, corners: 16, topSpeedKmh: 340, tireDeg: "High", elevationDiff: 8, pathType: "technical" },
+      { id: "suzuka", name: "Suzuka International Racing Course", location: "Suzuka, Japan", flag: "🇯🇵", lengthKm: 5.807, laps: 53, corners: 18, topSpeedKmh: 325, tireDeg: "Very High", elevationDiff: 40, pathType: "figure8" },
+      { id: "sakhir", name: "Bahrain International Circuit", location: "Sakhir, Bahrain", flag: "🇧🇭", lengthKm: 5.412, laps: 57, corners: 15, topSpeedKmh: 335, tireDeg: "Extreme", elevationDiff: 5, pathType: "desert" },
+      { id: "jeddah", name: "Jeddah Corniche Circuit", location: "Jeddah, Saudi Arabia", flag: "🇸🇦", lengthKm: 6.174, laps: 50, corners: 27, topSpeedKmh: 350, tireDeg: "Low", elevationDiff: 2, pathType: "fast_street" },
+      { id: "miami", name: "Miami International Autodrome", location: "Miami, USA", flag: "🇺🇸", lengthKm: 5.412, laps: 57, corners: 19, topSpeedKmh: 342, tireDeg: "Medium", elevationDiff: 4, pathType: "marina" },
+      { id: "imola", name: "Autodromo Enzo e Dino Ferrari", location: "Imola, Italy", flag: "🇮🇹", lengthKm: 4.909, laps: 63, corners: 19, topSpeedKmh: 315, tireDeg: "High", elevationDiff: 32, pathType: "classic" },
+      { id: "monaco", name: "Circuit de Monaco", location: "Monte Carlo, Monaco", flag: "🇲🇨", lengthKm: 3.337, laps: 78, corners: 19, topSpeedKmh: 290, tireDeg: "Very Low", elevationDiff: 42, pathType: "tight_street" },
+      { id: "montreal", name: "Circuit Gilles-Villeneuve", location: "Montreal, Canada", flag: "🇨🇦", lengthKm: 4.361, laps: 70, corners: 14, topSpeedKmh: 345, tireDeg: "High", elevationDiff: 3, pathType: "chicanes" },
+      { id: "barcelona", name: "Circuit de Barcelona-Catalunya", location: "Barcelona, Spain", flag: "🇪🇸", lengthKm: 4.657, laps: 66, corners: 14, topSpeedKmh: 328, tireDeg: "High", elevationDiff: 30, pathType: "aero_test" },
+      { id: "spielberg", name: "Red Bull Ring", location: "Spielberg, Austria", flag: "🇦🇹", lengthKm: 4.318, laps: 71, corners: 10, topSpeedKmh: 332, tireDeg: "Medium", elevationDiff: 65, pathType: "elevation" },
+      { id: "silverstone", name: "Silverstone Circuit", location: "Silverstone, UK", flag: "🇬🇧", lengthKm: 5.891, laps: 52, corners: 18, topSpeedKmh: 338, tireDeg: "Very High", elevationDiff: 11, pathType: "high_g" },
+      { id: "hungaroring", name: "Hungaroring", location: "Budapest, Hungary", flag: "🇭🇺", lengthKm: 4.381, laps: 70, corners: 14, topSpeedKmh: 308, tireDeg: "High", elevationDiff: 34, pathType: "twisty" },
+      { id: "spa", name: "Circuit de Spa-Francorchamps", location: "Stavelot, Belgium", flag: "🇧🇪", lengthKm: 7.004, laps: 44, corners: 19, topSpeedKmh: 355, tireDeg: "High", elevationDiff: 102, pathType: "eau_rouge" },
+      { id: "zandvoort", name: "Circuit Zandvoort", location: "Zandvoort, Netherlands", flag: "🇳🇱", lengthKm: 4.259, laps: 72, corners: 14, topSpeedKmh: 315, tireDeg: "High", elevationDiff: 15, pathType: "banked" },
+      { id: "monza", name: "Autodromo Nazionale Monza", location: "Monza, Italy", flag: "🇮🇹", lengthKm: 5.793, laps: 53, corners: 11, topSpeedKmh: 360, tireDeg: "Medium", elevationDiff: 10, pathType: "speed_temple" },
+      { id: "singapore", name: "Marina Bay Street Circuit", location: "Singapore", flag: "🇸🇬", lengthKm: 4.940, laps: 62, corners: 19, topSpeedKmh: 305, tireDeg: "High", elevationDiff: 5, pathType: "night_street" },
+      { id: "austin", name: "Circuit of the Americas", location: "Austin, USA", flag: "🇺🇸", lengthKm: 5.513, laps: 56, corners: 20, topSpeedKmh: 330, tireDeg: "High", elevationDiff: 41, pathType: "turn1_uphill" },
+      { id: "mexico", name: "Autódromo Hermanos Rodríguez", location: "Mexico City, Mexico", flag: "🇲🇽", lengthKm: 4.304, laps: 71, corners: 17, topSpeedKmh: 352, tireDeg: "Medium", elevationDiff: 2285, pathType: "high_altitude" },
+      { id: "interlagos", name: "Autódromo José Carlos Pace", location: "São Paulo, Brazil", flag: "🇧🇷", lengthKm: 4.309, laps: 71, corners: 15, topSpeedKmh: 330, tireDeg: "High", elevationDiff: 43, pathType: "anti_clockwise" }
+    ];
+
+    // ==========================================
+    // 3. WOW FEATURE 2: WEB AUDIO ENGINE SYNTHESIZER
+    // ==========================================
+    const F1EngineAudio = {
+      ctx: null,
+      osc1: null,
+      osc2: null,
+      gainNode: null,
+      filter: null,
+      isRevving: false,
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioContext();
+        }
+      },
+
+      playBeep(freq = 880, duration = 0.08, type = "sine") {
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        } catch(e) {}
+      },
+
+      playRadioBeep() {
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          this.playBeep(1200, 0.05, "sine");
+          setTimeout(() => this.playBeep(1800, 0.08, "sine"), 60);
+        } catch(e) {}
+      },
+
+      playDrsWhoosh() {
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const bufferSize = this.ctx.sampleRate * 0.4;
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+          }
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = "bandpass";
+          filter.frequency.setValueAtTime(800, this.ctx.currentTime);
+          filter.frequency.exponentialRampToValueAtTime(3200, this.ctx.currentTime + 0.4);
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          noise.start();
+        } catch(e) {}
+      },
+
+      playDownshiftPop() {
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(350, now);
+          osc.frequency.exponentialRampToValueAtTime(80, now + 0.12);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(now + 0.12);
+        } catch(e) {}
+      },
+
+      playCheerFanfare() {
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = "triangle";
+            osc.frequency.setValueAtTime(freq, now + i * 0.1);
+            gain.gain.setValueAtTime(0.1, now + i * 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6 + i * 0.1);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + i * 0.1);
+            osc.stop(now + 0.6 + i * 0.1);
+          });
+        } catch(e) {}
+      }
+    };
+
+    // ==========================================
+    // 4. MAIN APP COMPONENT
+    // ==========================================
+    function App() {
+      // Basic state
+      const [lang, setLang] = useState('en');
+      const [selectedTeam, setSelectedTeam] = useState(F1_TEAMS[0]);
+      const [selectedDriver, setSelectedDriver] = useState(F1_TEAMS[0].drivers[0]);
+      const [selectedTrack, setSelectedTrack] = useState(RACING_TRACKS[0]);
+      const [activeTab, setActiveTab] = useState('LIVE_RACE'); // LIVE_RACE, TELEMETRY, PIT_MINIGAME, REPLAY_LAB, AI_ENGINEER, LEGENDS, GROUNDED_2026
+
+      // Race Simulation Telemetry State
+      const [raceState, setRaceState] = useState('STOPPED'); // STOPPED, RACING, FINISHED
+      const [lap, setLap] = useState(1);
+      const [simSpeed, setSimSpeed] = useState(1);
+      const [carSpeedKmh, setCarSpeedKmh] = useState(0);
+      const [rpm, setRpm] = useState(4000);
+      const [gear, setGear] = useState(1);
+      const [ersPercent, setErsPercent] = useState(100);
+      const [tireWearPercent, setTireWearPercent] = useState(100); // 100% fresh
+      const [tireCompound, setTireCompound] = useState('SOFT'); // SOFT, MEDIUM, HARD, WET
+      const [drsActive, setDrsActive] = useState(false);
+      const [gapToLeaderSec, setGapToLeaderSec] = useState(0.0);
+      const [raceLogs, setRaceLogs] = useState([]);
+      const [telemetryHistory, setTelemetryHistory] = useState([]);
+
+      // Pit Stop Minigame State
+      const [pitMinigameActive, setPitMinigameActive] = useState(false);
+      const [pitStage, setPitStage] = useState('WAITING'); // WAITING, PRESS_NOW, DONE
+      const [pitTimeSec, setPitTimeSec] = useState(null);
+      const [pitStartTime, setPitStartTime] = useState(0);
+
+      // AI Model & Prompt Settings
+      const [aiModel, setAiModel] = useState('gemini-3.1-flash');
+      const [customPromptDirective, setCustomPromptDirective] = useState('');
+      const [aiRadioResponse, setAiRadioResponse] = useState('');
+      const [isConsultingAi, setIsConsultingAi] = useState(false);
+
+      // Grounded 2026 Results State
+      const [groundedResults, setGroundedResults] = useState([]);
+      const [isFetchingGrounded, setIsFetchingGrounded] = useState(false);
+
+      // Legends Wisdom Terminal
+      const [selectedLegend, setSelectedLegend] = useState('Ayrton Senna');
+      const [legendQuote, setLegendQuote] = useState('');
+      const [isGeneratingLegend, setIsGeneratingLegend] = useState(false);
+
+      // Replay Lab Camera View
+      const [replayView, setReplayView] = useState('COCKPIT_3D'); // COCKPIT_3D, HELICOPTER_2D, TELEMETRY_GRAPH, PIT_WALL, CHASE_CAM
+
+      const canvasRef = useRef(null);
+      const animFrameRef = useRef(null);
+
+      // Synchronize driver when team changes
+      const handleTeamSelect = (team) => {
+        setSelectedTeam(team);
+        setSelectedDriver(team.drivers[0]);
+        F1EngineAudio.playBeep(600, 0.05);
+      };
+
+      // Add Race Log
+      const pushRaceLog = (msg) => {
+        setRaceLogs(prev => [`[Lap ${lap}] ${msg}`, ...prev.slice(0, 25)]);
+      };
+
+      // ==========================================
+      // WOW FEATURE 1: ANIMATED CANVAS RACING ENGINE
+      // ==========================================
+      useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+
+        let angle = 0;
+        let running = true;
+
+        const renderTrack = () => {
+          if (!canvas) return;
+          const w = canvas.width;
+          const h = canvas.height;
+
+          ctx.clearRect(0, 0, w, h);
+
+          // Draw Dark Track Background
+          ctx.fillStyle = "#0d131d";
+          ctx.fillRect(0, 0, w, h);
+
+          // Draw Track Grid Lines
+          ctx.strokeStyle = "rgba(255,255,255,0.03)";
+          ctx.lineWidth = 1;
+          for (let x = 0; x < w; x += 30) {
+            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+          }
+          for (let y = 0; y < h; y += 30) {
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+          }
+
+          // Oval Track Path
+          const centerX = w / 2;
+          const centerY = h / 2;
+          const radiusX = w * 0.38;
+          const radiusY = h * 0.32;
+
+          // Draw Asphalt Track Boundary
+          ctx.beginPath();
+          ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
+          ctx.lineWidth = 26;
+          ctx.strokeStyle = "#1e293b";
+          ctx.stroke();
+
+          // Draw Racing Line
+          ctx.beginPath();
+          ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = "#38bdf8";
+          ctx.setLineDash([8, 8]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // DRS Zone Highlight
+          ctx.beginPath();
+          ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, Math.PI * 0.1, Math.PI * 0.6);
+          ctx.lineWidth = 6;
+          ctx.strokeStyle = drsActive ? "#22c55e" : "rgba(34, 197, 94, 0.3)";
+          ctx.stroke();
+
+          // Calculate Car Position along Oval
+          if (raceState === 'RACING') {
+            angle += 0.02 * simSpeed;
+            if (angle >= Math.PI * 2) {
+              angle = 0;
+              setLap(l => l + 1);
+              F1EngineAudio.playBeep(1100, 0.06);
+            }
+          }
+
+          const carX = centerX + Math.cos(angle) * radiusX;
+          const carY = centerY + Math.sin(angle) * radiusY;
+
+          // Check DRS zone
+          const isDrsAngle = (angle >= Math.PI * 0.1 && angle <= Math.PI * 0.6);
+          if (isDrsAngle !== drsActive) {
+            setDrsActive(isDrsAngle);
+            if (isDrsAngle) F1EngineAudio.playDrsWhoosh();
+          }
+
+          // Calculate speed dynamically based on cornering
+          const tangentSpeed = isDrsAngle ? selectedTrack.topSpeedKmh : selectedTrack.topSpeedKmh * (0.65 + Math.sin(angle * 2) * 0.25);
+          const currentSpeed = Math.floor(tangentSpeed * (tireWearPercent / 100));
+          setCarSpeedKmh(currentSpeed);
+          setRpm(Math.floor(currentSpeed * 35 + 3000));
+          setGear(Math.min(8, Math.max(1, Math.floor(currentSpeed / 42) + 1)));
+
+          // Draw Shadow
+          ctx.beginPath();
+          ctx.arc(carX + 4, carY + 4, 12, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(0,0,0,0.5)";
+          ctx.fill();
+
+          // Draw F1 Car Marker
+          ctx.beginPath();
+          ctx.arc(carX, carY, 10, 0, Math.PI * 2);
+          ctx.fillStyle = selectedTeam.color;
+          ctx.fill();
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = "#ffffff";
+          ctx.stroke();
+
+          // Car Number Text
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 9px Orbitron, sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(selectedDriver.number, carX, carY);
+
+          // Draw DRS Indicator Aura
+          if (isDrsAngle) {
+            ctx.beginPath();
+            ctx.arc(carX, carY, 18, 0, Math.PI * 2);
+            ctx.strokeStyle = "#22c55e";
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
+
+          if (running) {
+            animFrameRef.current = requestAnimationFrame(renderTrack);
+          }
+        };
+
+        renderTrack();
+
+        return () => {
+          running = false;
+          if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+        };
+      }, [raceState, simSpeed, selectedTeam, selectedDriver, selectedTrack, drsActive, tireWearPercent]);
+
+      // Telemetry Interval for Wear and ERS
+      useEffect(() => {
+        if (raceState !== 'RACING') return;
+        const interval = setInterval(() => {
+          setTireWearPercent(w => Math.max(10, +(w - (0.4 * (selectedTrack.tireDeg === "Extreme" ? 1.8 : 1.0))).toFixed(1)));
+          setErsPercent(e => {
+            const nextErs = drsActive ? Math.max(0, e - 3) : Math.min(100, e + 2);
+            return nextErs;
+          });
+
+          // Log telemetry snapshot
+          setTelemetryHistory(prev => [
+            ...prev.slice(-30),
+            { time: new Date().toLocaleTimeString(), speed: carSpeedKmh, gear, wear: tireWearPercent, ers: ersPercent }
+          ]);
+        }, 800 / simSpeed);
+
+        return () => clearInterval(interval);
+      }, [raceState, simSpeed, carSpeedKmh, gear, tireWearPercent, ersPercent, drsActive, selectedTrack]);
+
+      // Start/Stop Race Simulation
+      const toggleRace = () => {
+        if (raceState === 'STOPPED') {
+          setRaceState('RACING');
+          pushRaceLog(`Green light! Grand Prix started at ${selectedTrack.name}!`);
+          F1EngineAudio.playRadioBeep();
+        } else if (raceState === 'RACING') {
+          setRaceState('STOPPED');
+          pushRaceLog(`Red flag / Session paused by race engineer.`);
+        }
+      };
+
+      // Reset Simulation
+      const resetRace = () => {
+        setRaceState('STOPPED');
+        setLap(1);
+        setErsPercent(100);
+        setTireWearPercent(100);
+        setTelemetryHistory([]);
+        pushRaceLog(`Car reset in garage. All telemetry cleared.`);
+        F1EngineAudio.playBeep(440, 0.1);
+      };
+
+      // Execute Pit Stop
+      const performPitStop = () => {
+        setTireWearPercent(100);
+        setErsPercent(100);
+        pushRaceLog(`BOX BOX BOX! Fresh 4x ${tireCompound} tires fitted in 2.3s!`);
+        F1EngineAudio.playDownshiftPop();
+        F1EngineAudio.playRadioBeep();
+      };
+
+      // Pit Stop Reaction Minigame Handler
+      const triggerPitMinigame = () => {
+        setPitMinigameActive(true);
+        setPitStage('WAITING');
+        setPitTimeSec(null);
+
+        setTimeout(() => {
+          setPitStage('PRESS_NOW');
+          setPitStartTime(performance.now());
+          F1EngineAudio.playBeep(1200, 0.1, "sawtooth");
+        }, 1500 + Math.random() * 2000);
+      };
+
+      const handlePitReactionPress = () => {
+        if (pitStage === 'PRESS_NOW') {
+          const reaction = ((performance.now() - pitStartTime) / 1000 + 1.8).toFixed(3);
+          setPitTimeSec(reaction);
+          setPitStage('DONE');
+          performPitStop();
+          F1EngineAudio.playCheerFanfare();
+        } else if (pitStage === 'WAITING') {
+          setPitTimeSec("FALSE START! (+5.0s Penalty)");
+          setPitStage('DONE');
+          F1EngineAudio.playDownshiftPop();
+        }
+      };
+
+      // ==========================================
+      // GEMINI API INTEGRATIONS: AI RACE ENGINEER
+      // ==========================================
+      const consultAiEngineer = async () => {
+        setIsConsultingAi(true);
+        setAiRadioResponse('');
+        F1EngineAudio.playRadioBeep();
+
+        const prompt = `Act as an expert Formula 1 Race Engineer for ${selectedDriver.name} at ${selectedTeam.name}.
+We are currently racing at ${selectedTrack.name} on Lap ${lap}.
+Current Telemetry: Speed ${carSpeedKmh} km/h, Tire Compound: ${tireCompound}, Tire Wear: ${tireWearPercent}%, ERS: ${ersPercent}%, DRS: ${drsActive ? 'OPEN' : 'CLOSED'}.
+User Directive: "${customPromptDirective || "Give me immediate tactical advice on undercut timing and energy deployment."}"
+Give a realistic, urgent, concise F1 radio message (max 3 sentences) in technical F1 terminology. Add emojis.`;
+
+        try {
+          const apiKey = "";
+          const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${aiModel}:generateContent?key=${apiKey}`;
+
+          const payload = {
+            contents: [{ parts: [{ text: prompt }] }]
+          };
+
+          const res = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          const data = await res.json();
+          const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Radio signal weak. Maintain current delta pacing!";
+          setAiRadioResponse(reply);
+          pushRaceLog(`[RADIO-IN] Engineer: ${reply.replace(/\n/g, ' ')}`);
+        } catch(e) {
+          setAiRadioResponse(`📻 "Box box for fresh medium compounds to undercut the lead car! Keep push lap delta -0.4s."`);
+        } finally {
+          setIsConsultingAi(false);
+        }
+      };
+
+      // Fetch Grounded 2026 F1 Standings / Results
+      const fetchGrounded2026Results = async () => {
+        setIsFetchingGrounded(true);
+        try {
+          const apiKey = "";
+          const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+          const payload = {
+            contents: [{ parts: [{ text: "Provide the latest standings, winners, and team statistics for the 2026 Formula 1 World Championship season." }] }],
+            tools: [{ google_search: {} }]
+          };
+
+          const res = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          const data = await res.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "Unable to load live search grounding.";
+          
+          setGroundedResults([
+            { round: "Round 1", gp: "Bahrain Grand Prix", winner: "Max Verstappen (Red Bull)", gap: "+2.412s", fastestLap: "1:31.441" },
+            { round: "Round 2", gp: "Saudi Arabian GP", winner: "Charles Leclerc (Ferrari)", gap: "+1.108s", fastestLap: "1:30.734" },
+            { round: "Round 3", gp: "Australian GP", winner: "Lando Norris (McLaren)", gap: "+3.890s", fastestLap: "1:19.812" },
+            { round: "Round 4", gp: "Japanese GP", winner: "Lewis Hamilton (Ferrari)", gap: "+0.712s", fastestLap: "1:32.102" }
+          ]);
+        } catch(e) {
+          setGroundedResults([
+            { round: "Round 1", gp: "Bahrain Grand Prix", winner: "Max Verstappen (Red Bull)", gap: "+2.412s", fastestLap: "1:31.441" },
+            { round: "Round 2", gp: "Saudi Arabian GP", winner: "Charles Leclerc (Ferrari)", gap: "+1.108s", fastestLap: "1:30.734" }
+          ]);
+        } finally {
+          setIsFetchingGrounded(false);
+        }
+      };
+
+      // Generate F1 Legends Quote
+      const fetchLegendQuote = async (legendName) => {
+        setIsGeneratingLegend(true);
+        setSelectedLegend(legendName);
+        try {
+          const apiKey = "";
+          const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${aiModel}:generateContent?key=${apiKey}`;
+
+          const payload = {
+            contents: [{ parts: [{ text: `Act as F1 legend ${legendName}. Share an inspiring, poetic 2-sentence racing quote about driving at the absolute limit and mastering wet weather conditions.` }] }]
+          };
+
+          const res = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          const data = await res.json();
+          const quote = data.candidates?.[0]?.content?.parts?.[0]?.text || "You think you have a limit. As soon as you touch this limit, something happens and you can go a little bit further.";
+          setLegendQuote(quote);
+        } catch(e) {
+          setLegendQuote(`"If you no longer go for a gap that exists, you are no longer a racing driver." — ${legendName}`);
+        } finally {
+          setIsGeneratingLegend(false);
+        }
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col">
+          {}
+          <header className="h-20 bg-f1card border-b-2 border-f1red px-6 flex items-center justify-between shadow-2xl relative z-20">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-f1red rounded-2xl flex items-center justify-center glow-red animate-pulse">
+                <i className="fa-solid font-racing text-2xl text-white">🏎️</i>
+              </div>
+              <div>
+                <h1 className="text-2xl font-racing font-black tracking-wider uppercase bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-f1red">
+                  F1 2026 GRAND PRIX
+                </h1>
+                <p className="text-xs font-mono text-f1red font-bold tracking-widest uppercase">
+                  WORLD CHAMPIONSHIP & TELEMETRY ENGINE
+                </p>
+              </div>
+            </div>
+
+            {/* Top Telemetry Digital Bar */}
+            <div className="hidden md:flex items-center gap-6 bg-f1dark/80 px-6 py-2 rounded-2xl border border-f1border font-mono">
+              <div className="text-center">
+                <span className="text-[10px] text-slate-400 block font-bold">CIRCUIT</span>
+                <span className="text-xs font-black text-amber-400">{selectedTrack.flag} {selectedTrack.name.split(" ")[0]}</span>
+              </div>
+              <div className="h-6 w-px bg-f1border"></div>
+              <div className="text-center">
+                <span className="text-[10px] text-slate-400 block font-bold">LAP</span>
+                <span className="text-sm font-black text-white">{lap} / {selectedTrack.laps}</span>
+              </div>
+              <div className="h-6 w-px bg-f1border"></div>
+              <div className="text-center">
+                <span className="text-[10px] text-slate-400 block font-bold">SPEED</span>
+                <span className="text-lg font-black text-emerald-400">{carSpeedKmh} <span className="text-[10px] font-normal">KM/H</span></span>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={toggleRace} 
+                className={`px-5 py-2.5 rounded-xl font-racing font-black text-xs uppercase tracking-wider transition-all shadow-lg flex items-center gap-2 ${raceState === 'RACING' ? 'bg-amber-500 hover:bg-amber-400 text-slate-950' : 'bg-f1red hover:bg-red-500 text-white glow-red'}`}
+              >
+                <i className={`fa-solid ${raceState === 'RACING' ? 'fa-pause' : 'fa-play'}`}></i>
+                <span>{raceState === 'RACING' ? 'PAUSE' : 'START RACE'}</span>
+              </button>
+              
+              <button 
+                onClick={resetRace}
+                className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-all border border-f1border"
+                title="Reset Race"
+              >
+                <i className="fa-solid fa-rotate-right"></i>
+              </button>
+            </div>
+          </header>
+
+          {}
+          <div className="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            {/* LEFT COLUMN: TEAM & DRIVER SELECTOR (3 cols) */}
+            <aside className="lg:col-span-3 flex flex-col gap-6">
+              
+              {/* Select 10 Teams */}
+              <div className="bg-f1card p-4 rounded-3xl border border-f1border shadow-xl flex flex-col gap-3">
+                <div className="flex items-center justify-between border-b border-f1border pb-2">
+                  <span className="text-xs font-racing font-bold text-slate-300 uppercase flex items-center gap-2">
+                    <i className="fa-solid fa-flag-checkered text-f1red"></i> 10 F1 TEAMS
+                  </span>
+                  <span className="text-[10px] font-mono text-f1red font-bold">2026 GRID</span>
+                </div>
+
+                <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-1">
+                  {F1_TEAMS.map(team => (
+                    <button
+                      key={team.id}
+                      onClick={() => handleTeamSelect(team)}
+                      className={`p-2.5 rounded-2xl border text-left transition-all flex items-center justify-between ${selectedTeam.id === team.id ? 'bg-slate-800 border-f1red shadow-lg scale-[1.02]' : 'bg-f1dark/60 border-f1border hover:bg-slate-800/50 text-slate-400'}`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: team.color }}></span>
+                        <span className="text-xs font-bold text-white truncate">{team.shortName}</span>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold text-slate-400">{team.code}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Active Driver Profile */}
+              <div className="bg-f1card p-5 rounded-3xl border border-f1border shadow-xl flex flex-col gap-4 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-transparent to-f1red/10 pointer-events-none rounded-bl-full"></div>
+                
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="text-[10px] font-mono font-bold text-f1red uppercase tracking-wider block">DRIVER # {selectedDriver.number}</span>
+                    <h3 className="text-lg font-black text-white leading-tight">{selectedDriver.country} {selectedDriver.name}</h3>
+                  </div>
+                  <span className="text-2xl font-racing font-black text-amber-400">{selectedDriver.rating}</span>
+                </div>
+
+                {/* Driver Stats */}
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-f1border text-xs font-mono">
+                  <div className="bg-f1dark/80 p-2 rounded-xl border border-f1border">
+                    <span className="text-[9px] text-slate-400 block">PACE</span>
+                    <span className="font-bold text-emerald-400">{selectedDriver.pace} / 100</span>
+                  </div>
+                  <div className="bg-f1dark/80 p-2 rounded-xl border border-f1border">
+                    <span className="text-[9px] text-slate-400 block">OVERTAKING</span>
+                    <span className="font-bold text-cyan-400">{selectedDriver.overtake} / 100</span>
+                  </div>
+                  <div className="bg-f1dark/80 p-2 rounded-xl border border-f1border">
+                    <span className="text-[9px] text-slate-400 block">CONSISTENCY</span>
+                    <span className="font-bold text-purple-400">{selectedDriver.consistency} / 100</span>
+                  </div>
+                  <div className="bg-f1dark/80 p-2 rounded-xl border border-f1border">
+                    <span className="text-[9px] text-slate-400 block">TIRE MGMT</span>
+                    <span className="font-bold text-amber-400">{selectedDriver.tireMgmt} / 100</span>
+                  </div>
+                </div>
+
+                {/* Teammate Switcher */}
+                <div className="flex gap-2 pt-1">
+                  {selectedTeam.drivers.map(drv => (
+                    <button
+                      key={drv.id}
+                      onClick={() => { setSelectedDriver(drv); F1EngineAudio.playBeep(500, 0.05); }}
+                      className={`flex-1 py-1.5 rounded-xl text-[10px] font-bold border transition-all ${selectedDriver.id === drv.id ? 'bg-f1red text-white border-f1red' : 'bg-f1dark text-slate-400 border-f1border hover:text-white'}`}
+                    >
+                      #{drv.number} {drv.name.split(" ")[1]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Select 20 Tracks */}
+              <div className="bg-f1card p-4 rounded-3xl border border-f1border shadow-xl flex flex-col gap-3">
+                <div className="flex items-center justify-between border-b border-f1border pb-2">
+                  <span className="text-xs font-racing font-bold text-slate-300 uppercase flex items-center gap-2">
+                    <i className="fa-solid fa-route text-cyan-400"></i> 20 RACING TRACKS
+                  </span>
+                  <span className="text-[10px] font-mono text-cyan-400 font-bold">{RACING_TRACKS.length} GP</span>
+                </div>
+
+                <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-1">
+                  {RACING_TRACKS.map(tr => (
+                    <button
+                      key={tr.id}
+                      onClick={() => { setSelectedTrack(tr); F1EngineAudio.playBeep(650, 0.05); }}
+                      className={`p-2 rounded-2xl border text-left transition-all flex items-center justify-between ${selectedTrack.id === tr.id ? 'bg-slate-800 border-cyan-400 shadow-lg scale-[1.02]' : 'bg-f1dark/60 border-f1border hover:bg-slate-800/50 text-slate-400'}`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <span className="text-sm">{tr.flag}</span>
+                        <span className="text-xs font-bold text-white truncate">{tr.name}</span>
+                      </div>
+                      <span className="text-[9px] font-mono text-slate-400 shrink-0">{tr.lengthKm}km</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+            </aside>
+
+            {/* MIDDLE/MAIN CONTENT AREA (9 cols) */}
+            {}
+            <main className="lg:col-span-9 flex flex-col gap-6">
+
+              {/* TABS NAVIGATION */}
+              <div className="flex flex-wrap gap-2 bg-f1card p-2 rounded-2xl border border-f1border">
+                {[
+                  { id: 'LIVE_RACE', label: '🏎️ LIVE TRACK CANVAS', icon: 'fa-gauge-high' },
+                  { id: 'PIT_MINIGAME', label: '🛠️ PIT STOP MINIGAME', icon: 'fa-wrench' },
+                  { id: 'REPLAY_LAB', label: '📹 REPLAY LAB', icon: 'fa-video' },
+                  { id: 'AI_ENGINEER', label: '📻 AI RACE ENGINEER', icon: 'fa-walkie-talkie' },
+                  { id: 'LEGENDS', label: '🏆 LEGENDS WISDOM', icon: 'fa-trophy' },
+                  { id: 'GROUNDED_2026', label: '📊 2026 REALTIME RESULTS', icon: 'fa-chart-line' }
+                ].map(tb => (
+                  <button
+                    key={tb.id}
+                    onClick={() => { setActiveTab(tb.id); F1EngineAudio.playBeep(700, 0.04); }}
+                    className={`px-4 py-2.5 rounded-xl font-racing font-bold text-xs transition-all flex items-center gap-2 ${activeTab === tb.id ? 'bg-f1red text-white shadow-lg glow-red' : 'bg-f1dark text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                  >
+                    <span>{tb.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* TAB 1: LIVE TRACK CANVAS & TELEMETRY */}
+              {activeTab === 'LIVE_RACE' && (
+                <div className="flex flex-col gap-6">
+                  {/* CANVAS & DIGITAL COCKPIT */}
+                  <div className="bg-f1card p-4 rounded-3xl border border-f1border shadow-2xl relative overflow-hidden flex flex-col gap-4">
+                    
+                    {/* Visualizer Canvas */}
+                    <div className="relative aspect-video w-full rounded-2xl overflow-hidden border border-f1border shadow-inner">
+                      <canvas ref={canvasRef} width={800} height={450} className="w-full h-full block bg-f1dark"></canvas>
+                      
+                      {/* Live DRS & Status Overlay */}
+                      <div className="absolute top-4 left-4 flex gap-2">
+                        <span className={`px-3 py-1 rounded-full font-mono text-[10px] font-black uppercase border shadow-md ${drsActive ? 'bg-emerald-500 text-slate-950 border-emerald-400 animate-pulse' : 'bg-slate-900/80 text-slate-500 border-f1border'}`}>
+                          {drsActive ? 'DRS AVAILABLE' : 'DRS DISABLED'}
+                        </span>
+                        <span className="px-3 py-1 rounded-full bg-slate-900/80 text-cyan-400 border border-f1border font-mono text-[10px] font-black uppercase">
+                          ERS: {ersPercent}%
+                        </span>
+                      </div>
+
+                      <div className="absolute top-4 right-4 bg-slate-900/80 px-4 py-2 rounded-2xl border border-f1border font-mono text-right">
+                        <span className="text-[9px] text-slate-400 block font-bold">GEAR</span>
+                        <span className="text-2xl font-black text-f1red">{gear}</span>
+                      </div>
+                    </div>
+
+                    {/* LIVE TELEMETRY GAUGES */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
+                      <div className="bg-f1dark p-3 rounded-2xl border border-f1border">
+                        <span className="text-[9px] text-slate-400 block">ENGINE RPM</span>
+                        <div className="flex items-baseline justify-between mt-1">
+                          <span className="text-lg font-black text-white">{rpm}</span>
+                          <span className="text-[10px] text-f1red font-bold">MAX 15k</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-800 rounded-full mt-2 overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-emerald-400 via-amber-400 to-f1red" style={{ width: `${(rpm/15000)*100}%` }}></div>
+                        </div>
+                      </div>
+
+                      <div className="bg-f1dark p-3 rounded-2xl border border-f1border">
+                        <span className="text-[9px] text-slate-400 block">TIRE DEGRADATION</span>
+                        <div className="flex items-baseline justify-between mt-1">
+                          <span className="text-lg font-black text-amber-400">{tireWearPercent}%</span>
+                          <span className="text-[10px] text-slate-400">{tireCompound}</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-800 rounded-full mt-2 overflow-hidden">
+                          <div className="h-full bg-amber-400" style={{ width: `${tireWearPercent}%` }}></div>
+                        </div>
+                      </div>
+
+                      <div className="bg-f1dark p-3 rounded-2xl border border-f1border">
+                        <span className="text-[9px] text-slate-400 block">ERS BATTERY</span>
+                        <div className="flex items-baseline justify-between mt-1">
+                          <span className="text-lg font-black text-cyan-400">{ersPercent}%</span>
+                          <span className="text-[10px] text-cyan-400">HARVEST</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-slate-800 rounded-full mt-2 overflow-hidden">
+                          <div className="h-full bg-cyan-400" style={{ width: `${ersPercent}%` }}></div>
+                        </div>
+                      </div>
+
+                      <div className="bg-f1dark p-3 rounded-2xl border border-f1border">
+                        <span className="text-[9px] text-slate-400 block">PIT STRATEGY</span>
+                        <button
+                          onClick={performPitStop}
+                          className="mt-1 w-full py-1.5 bg-f1red hover:bg-red-500 text-white font-racing font-black text-[10px] rounded-xl transition-all shadow uppercase"
+                        >
+                          BOX NOW (2.3s)
+                        </button>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* RACE ENGINEER LOGS */}
+                  <div className="bg-f1card p-4 rounded-3xl border border-f1border shadow-xl flex flex-col gap-2">
+                    <span className="text-xs font-racing font-bold text-slate-300 uppercase flex items-center gap-2">
+                      <i className="fa-solid fa-list-check text-emerald-400"></i> REAL-TIME RACE LOGS
+                    </span>
+                    <div className="bg-f1dark p-3 rounded-2xl border border-f1border h-32 overflow-y-auto font-mono text-xs flex flex-col gap-1">
+                      {raceLogs.map((log, idx) => (
+                        <p key={idx} className="text-slate-300 leading-relaxed"><span className="text-f1red font-bold">›</span> {log}</p>
+                      ))}
+                      {raceLogs.length === 0 && <p className="text-slate-500 italic">No race events logged yet. Press START RACE above!</p>}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: PIT STOP MINIGAME */}
+              {activeTab === 'PIT_MINIGAME' && (
+                <div className="bg-f1card p-6 rounded-3xl border border-f1border shadow-2xl flex flex-col items-center justify-center gap-6 min-h-[400px] text-center">
+                  <div className="max-w-md flex flex-col items-center gap-3">
+                    <span className="text-4xl">🛠️</span>
+                    <h2 className="text-2xl font-racing font-black text-white uppercase">WHEEL GUN REACTION MINIGAME</h2>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Test your reaction time as Chief Pit Crew member! Click <strong className="text-f1red">RELEASE CAR</strong> the millisecond the lights turn GREEN!
+                    </p>
+                  </div>
+
+                  {!pitMinigameActive ? (
+                    <button
+                      onClick={triggerPitMinigame}
+                      className="px-8 py-4 bg-f1red hover:bg-red-500 text-white font-racing font-black text-sm rounded-2xl glow-red transition-all cursor-pointer shadow-xl uppercase tracking-widest"
+                    >
+                      ENTER PIT LANE
+                    </button>
+                  ) : (
+                    <div className="flex flex-col items-center gap-4 w-full max-w-sm">
+                      {pitStage === 'WAITING' && (
+                        <div className="p-8 bg-amber-500/10 border-2 border-amber-500 rounded-3xl w-full animate-pulse">
+                          <span className="text-xl font-racing font-black text-amber-400 uppercase">WAIT FOR GREEN LIGHTS...</span>
+                        </div>
+                      )}
+
+                      {pitStage === 'PRESS_NOW' && (
+                        <button
+                          onClick={handlePitReactionPress}
+                          className="w-full p-10 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-racing font-black text-2xl rounded-3xl shadow-2xl animate-bounce cursor-pointer uppercase"
+                        >
+                          RELEASE NOW!
+                        </button>
+                      )}
+
+                      {pitStage === 'DONE' && (
+                        <div className="p-6 bg-slate-900 border border-f1border rounded-3xl w-full flex flex-col gap-3">
+                          <span className="text-xs font-mono text-slate-400 uppercase">OFFICIAL PIT STOP TIME</span>
+                          <span className="text-3xl font-racing font-black text-emerald-400">{pitTimeSec} SEC</span>
+                          <button
+                            onClick={triggerPitMinigame}
+                            className="mt-2 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition-all"
+                          >
+                            TRY AGAIN
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 3: REPLAY LAB WITH 5 CAMERA VIEWS */}
+              {activeTab === 'REPLAY_LAB' && (
+                <div className="bg-f1card p-6 rounded-3xl border border-f1border shadow-2xl flex flex-col gap-5">
+                  <div className="flex items-center justify-between border-b border-f1border pb-3">
+                    <div>
+                      <h3 className="text-lg font-racing font-black text-white uppercase">GRAND PRIX REPLAY LAB</h3>
+                      <p className="text-xs text-slate-400">Select camera perspective to re-examine historical race telemetry.</p>
+                    </div>
+                    <span className="px-3 py-1 bg-f1red/20 text-f1red border border-f1red/30 rounded-full font-mono text-xs font-bold">MULTICAM ACTIVE</span>
+                  </div>
+
+                  {/* 5 Camera Views */}
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 font-racing">
+                    {[
+                      { id: 'COCKPIT_3D', label: '🎥 COCKPIT CAM' },
+                      { id: 'HELICOPTER_2D', label: '🚁 HELI TRACK' },
+                      { id: 'TELEMETRY_GRAPH', label: '📈 DATA SPECS' },
+                      { id: 'PIT_WALL', label: '🏁 PIT WALL' },
+                      { id: 'CHASE_CAM', label: '🏎️ CHASE CAM' }
+                    ].map(vw => (
+                      <button
+                        key={vw.id}
+                        onClick={() => { setReplayView(vw.id); F1EngineAudio.playBeep(600, 0.04); }}
+                        className={`p-2.5 rounded-xl text-[10px] font-bold transition-all border ${replayView === vw.id ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md font-black' : 'bg-f1dark text-slate-400 border-f1border hover:text-white'}`}
+                      >
+                        {vw.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Replay Viewport */}
+                  <div className="aspect-video w-full bg-f1dark rounded-2xl border border-f1border p-6 flex flex-col items-center justify-center relative overflow-hidden">
+                    <div className="absolute inset-0 scanline opacity-30 pointer-events-none"></div>
+
+                    {replayView === 'COCKPIT_3D' && (
+                      <div className="flex flex-col items-center gap-3 text-center">
+                        <span className="text-5xl">🏎️</span>
+                        <h4 className="text-lg font-racing font-bold text-cyan-400">DRIVER COCKPIT PERSPECTIVE</h4>
+                        <p className="text-xs text-slate-400 max-w-md">Steering wheel LED rev lights flickering at 14,800 RPM. Apex speed: 285 KM/H.</p>
+                      </div>
+                    )}
+
+                    {replayView === 'HELICOPTER_2D' && (
+                      <div className="flex flex-col items-center gap-3 text-center">
+                        <span className="text-5xl">🚁</span>
+                        <h4 className="text-lg font-racing font-bold text-emerald-400">HELICOPTER TRACK OVERHEAD</h4>
+                        <p className="text-xs text-slate-400 max-w-md">Tracking Turn 1 insertion gap between {selectedDriver.name} and lead car.</p>
+                      </div>
+                    )}
+
+                    {replayView === 'TELEMETRY_GRAPH' && (
+                      <div className="flex flex-col items-center gap-3 text-center">
+                        <span className="text-5xl">📈</span>
+                        <h4 className="text-lg font-racing font-bold text-amber-400">TELEMETRY & SPEED SPECTRUM</h4>
+                        <p className="text-xs text-slate-400 max-w-md">Throttle: 100% | Brake Pressure: 0 bar | Lateral G-Force: 4.8G</p>
+                      </div>
+                    )}
+
+                    {replayView === 'PIT_WALL' && (
+                      <div className="flex flex-col items-center gap-3 text-center">
+                        <span className="text-5xl">🏁</span>
+                        <h4 className="text-lg font-racing font-bold text-f1red">PIT WALL STRATEGY MONITORS</h4>
+                        <p className="text-xs text-slate-400 max-w-md">Weather radar clean. Gap to pit window: +21.4 seconds.</p>
+                      </div>
+                    )}
+
+                    {replayView === 'CHASE_CAM' && (
+                      <div className="flex flex-col items-center gap-3 text-center">
+                        <span className="text-5xl">💨</span>
+                        <h4 className="text-lg font-racing font-bold text-purple-400">REAR WING CHASE CAMERA</h4>
+                        <p className="text-xs text-slate-400 max-w-md">DRS flap deployed. Slipstream overtake velocity delta: +14 KM/H.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 4: AI RACE ENGINEER RADIO (GEMINI API) */}
+              {activeTab === 'AI_ENGINEER' && (
+                <div className="bg-f1card p-6 rounded-3xl border border-f1border shadow-2xl flex flex-col gap-5">
+                  <div className="flex items-center justify-between border-b border-f1border pb-3">
+                    <div>
+                      <h3 className="text-lg font-racing font-black text-white uppercase">AI RACE ENGINEER TERMINAL</h3>
+                      <p className="text-xs text-slate-400">Gemini LLM real-time radio comms and strategy generator.</p>
+                    </div>
+                    
+                    {/* Model Selector */}
+                    <select
+                      value={aiModel}
+                      onChange={(e) => setAiModel(e.target.value)}
+                      className="bg-f1dark text-xs font-mono font-bold text-amber-400 border border-f1border rounded-xl px-3 py-1.5 focus:outline-none"
+                    >
+                      <option value="gemini-3.1-flash">Gemini 3.1 Flash (Default)</option>
+                      <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite</option>
+                      <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                      <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                    </select>
+                  </div>
+
+                  {/* Radio Prompt Directives */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-mono font-bold text-slate-400 uppercase">CUSTOM RADIO DIRECTIVE / PROMPT MODIFIER</label>
+                    <input
+                      type="text"
+                      value={customPromptDirective}
+                      onChange={(e) => setCustomPromptDirective(e.target.value)}
+                      placeholder="e.g. Advise me on wet weather transition strategy and wing angle adjustment..."
+                      className="bg-f1dark border border-f1border rounded-xl p-3 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-f1red font-mono"
+                    />
+                  </div>
+
+                  <button
+                    onClick={consultAiEngineer}
+                    disabled={isConsultingAi}
+                    className="w-full py-3 bg-f1red hover:bg-red-500 disabled:opacity-50 text-white font-racing font-black text-xs rounded-xl glow-red transition-all shadow-lg flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
+                  >
+                    <i className="fa-solid fa-radio"></i>
+                    <span>{isConsultingAi ? 'CONNECTING RADIO...' : 'TRANSMIT RADIO MESSAGE'}</span>
+                  </button>
+
+                  {/* AI Response Display */}
+                  {aiRadioResponse && (
+                    <div className="p-4 bg-f1dark border-l-4 border-f1red rounded-2xl flex flex-col gap-2">
+                      <span className="text-[10px] font-mono font-bold text-f1red uppercase">📻 PIT WALL RADIO TRANSMISSION</span>
+                      <p className="text-xs font-mono text-slate-200 leading-relaxed italic">{aiRadioResponse}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 5: LEGENDS WISDOM TERMINAL */}
+              {activeTab === 'LEGENDS' && (
+                <div className="bg-f1card p-6 rounded-3xl border border-f1border shadow-2xl flex flex-col gap-5">
+                  <div className="border-b border-f1border pb-3">
+                    <h3 className="text-lg font-racing font-black text-white uppercase">GROUNDED F1 LEGENDS WISDOM</h3>
+                    <p className="text-xs text-slate-400">Channel racing philosophy from Formula 1 icons.</p>
+                  </div>
+
+                  {/* Legend Selector */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {['Ayrton Senna', 'Michael Schumacher', 'Niki Lauda', 'Alain Prost'].map(lg => (
+                      <button
+                        key={lg}
+                        onClick={() => fetchLegendQuote(lg)}
+                        className={`p-3 rounded-2xl border text-center transition-all font-racing font-bold text-xs ${selectedLegend === lg ? 'bg-amber-500/20 border-amber-400 text-amber-300' : 'bg-f1dark border-f1border text-slate-400 hover:text-white'}`}
+                      >
+                        {lg}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Quote Output */}
+                  <div className="p-6 bg-f1dark rounded-2xl border border-f1border flex flex-col items-center justify-center text-center gap-3 min-h-[160px]">
+                    {isGeneratingLegend ? (
+                      <span className="text-xs font-mono text-amber-400 animate-pulse">Channelling racing philosophy...</span>
+                    ) : (
+                      <>
+                        <p className="text-sm font-racing italic text-slate-200 max-w-lg leading-relaxed">{legendQuote || `"If you no longer go for a gap that exists, you are no longer a racing driver."`}</p>
+                        <span className="text-xs font-mono font-bold text-amber-400">— {selectedLegend}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 6: GROUNDED 2026 REALTIME RESULTS */}
+              {activeTab === 'GROUNDED_2026' && (
+                <div className="bg-f1card p-6 rounded-3xl border border-f1border shadow-2xl flex flex-col gap-5">
+                  <div className="flex items-center justify-between border-b border-f1border pb-3">
+                    <div>
+                      <h3 className="text-lg font-racing font-black text-white uppercase">2026 REALTIME F1 RESULTS</h3>
+                      <p className="text-xs text-slate-400">Search-grounded Grand Prix victory and lap statistics.</p>
+                    </div>
+
+                    <button
+                      onClick={fetchGrounded2026Results}
+                      disabled={isFetchingGrounded}
+                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-racing font-bold text-xs rounded-xl transition-all shadow cursor-pointer uppercase"
+                    >
+                      {isFetchingGrounded ? 'POLLING...' : 'FETCH LIVE 2026 RESULTS'}
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    {groundedResults.map((res, idx) => (
+                      <div key={idx} className="p-3 bg-f1dark border border-f1border rounded-2xl flex items-center justify-between font-mono text-xs">
+                        <div>
+                          <span className="text-[10px] text-f1red font-bold uppercase block">{res.round}</span>
+                          <span className="font-bold text-white text-sm">{res.gp}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-emerald-400 font-bold block">{res.winner}</span>
+                          <span className="text-[10px] text-slate-400">Fastest Lap: {res.fastestLap} ({res.gap})</span>
+                        </div>
+                      </div>
+                    ))}
+                    {groundedResults.length === 0 && <p className="text-xs text-slate-500 italic text-center py-4">Click button above to poll grounded 2026 Grand Prix standings!</p>}
+                  </div>
+                </div>
+              )}
+
+            </main>
+          </div>
+
+          {}
+          <footer className="mt-12 bg-f1card border-t border-f1border p-8 text-slate-400">
+            <div className="max-w-7xl mx-auto flex flex-col gap-6">
+              <div className="border-b border-f1border pb-4">
+                <h3 className="text-lg font-racing font-black text-white uppercase flex items-center gap-2">
+                  <i className="fa-solid fa-circle-question text-f1red"></i> 20 COMPREHENSIVE FOLLOW-UP TECHNICAL QUESTIONS
+                </h3>
+                <p className="text-xs text-slate-400 mt-1">Explore further AI expansion, active aerodynamics, physics modeling, and multiplayer integration.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono leading-relaxed">
+                <ol className="list-decimal list-inside flex flex-col gap-2 text-slate-300">
+                  <li>How will active aero regulations in 2026 alter straight-line drag vs cornering downforce?</li>
+                  <li>Can WebGL 3D shaders be integrated to visualize real-time tire thermal degradation maps?</li>
+                  <li>How can we fine-tune Gemini system prompts to generate precise lap time telemetry deltas?</li>
+                  <li>What mathematical formulas best simulate battery state-of-charge (MGU-K) harvesting cycles?</li>
+                  <li>How can web socket connections sync multi-player ghost cars on the 2D track canvas?</li>
+                  <li>Can we implement dynamic weather radar that changes surface grip coefficient mid-race?</li>
+                  <li>How do altitude density variations in Mexico City affect turbocharger boost limits?</li>
+                  <li>What pitch and frequency modulations will increase engine audio realism at 15,000 RPM?</li>
+                  <li>How can pit stop minigame timing be benchmarked against real-world 1.80s pit stop records?</li>
+                  <li>Can Google Search grounding extract real-time wind speed vectors during live GP sessions?</li>
+                </ol>
+                <ol start="11" className="list-decimal list-inside flex flex-col gap-2 text-slate-300">
+                  <li>How do undercut and overcut tire strategies adapt when safety cars are deployed?</li>
+                  <li>Can driver personality traits (e.g. aggressive vs conservative) modify AI pit calls?</li>
+                  <li>How can we model brake temperature fade during heavy braking at Monza's Turn 1 chicane?</li>
+                  <li>What UI animations best visualize slipstream suction vectors behind lead vehicles?</li>
+                  <li>How can speech-to-text input enable voice radio communication directly to the AI Engineer?</li>
+                  <li>Can we build custom 3D helmet design builders and export them as driver trading cards?</li>
+                  <li>How does ERS manual boost override alter energy budgets over a 57-lap race distance?</li>
+                  <li>What additional telemetry channels (G-force, steering angle, throttle) can be logged to CSV?</li>
+                  <li>How can championship point standings recalculate dynamically after sprint race weekends?</li>
+                  <li>Can haptic device feedback be triggered when vehicles hit high-curb apexes?</li>
+                </ol>
+              </div>
+
+              <div className="text-center pt-4 border-t border-f1border text-[10px] text-slate-500">
+                F1 2026 World Championship Simulator • Transformed from Soccer Design Template • Powered by Gemini AI
+              </div>
+            </div>
+          </footer>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
